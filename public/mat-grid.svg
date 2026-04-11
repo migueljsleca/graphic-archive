@@ -3,27 +3,27 @@
   width="120"
   height="120"
   viewBox="0 0 120 120"
-  shape-rendering="crispEdges"
+  shape-rendering="geometricPrecision"
 >
   <path
     d="M24.5 0V120 M48.5 0V120 M72.5 0V120 M96.5 0V120 M0 24.5H120 M0 48.5H120 M0 72.5H120 M0 96.5H120"
     fill="none"
-    stroke="#e2e9d2"
-    stroke-opacity="0.14"
+    stroke="#ffdb33"
+    stroke-opacity="0.06"
     stroke-width="1"
   />
   <path
     d="M119.5 0V120 M0 119.5H120"
     fill="none"
-    stroke="#eef5df"
-    stroke-opacity="0.12"
-    stroke-width="3"
+    stroke="#ffdb33"
+    stroke-opacity="0.05"
+    stroke-width="2"
   />
   <path
     d="M119.5 0V120 M0 119.5H120"
     fill="none"
-    stroke="#f3f8e8"
-    stroke-opacity="0.38"
+    stroke="#ffdb33"
+    stroke-opacity="0.14"
     stroke-width="1"
   />
 </svg>
