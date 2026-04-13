@@ -9,7 +9,13 @@ type DragState = {
   offsetY: number;
 } | null;
 
-export default function DraggablePlayer() {
+export default function DraggablePlayer({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
   const [dragging, setDragging] = useState<DragState>(null);
@@ -72,6 +78,10 @@ export default function DraggablePlayer() {
     };
   }, [dragging]);
 
+  if (!visible) {
+    return null;
+  }
+
   return (
     <div
       ref={playerRef}
@@ -96,7 +106,7 @@ export default function DraggablePlayer() {
       }}
       style={{ left: position.x, top: position.y }}
     >
-      <RetroPlayerStyle />
+      <RetroPlayerStyle onClose={onClose} />
     </div>
   );
 }

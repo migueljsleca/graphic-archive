@@ -1,57 +1,30 @@
 "use client";
 
 import { type ComponentType, useEffect, useRef, useState } from "react";
-import {
-  AcidxPress,
-  ThreeThousandIcons3,
-  ThreeThousandIcons7,
-  WindowsMusic,
-  WindowsVistaFolder,
-} from "react-old-icons";
 
 type IconEntry = {
   id: string;
   label: string;
   x: number;
   y: number;
-  Icon: ComponentType<{ size: number }>;
+  Icon?: ComponentType<{ size: number }>;
+  imageSrc?: string;
 };
 
 const INITIAL_ICONS: IconEntry[] = [
   {
     id: "vista-folder",
-    label: "WindowsVistaFolder",
+    label: "posters",
     x: 88,
     y: 96,
-    Icon: WindowsVistaFolder,
+    imageSrc: "/folder.svg",
   },
   {
-    id: "windows-music",
-    label: "WindowsMusic",
-    x: 256,
-    y: 96,
-    Icon: WindowsMusic,
-  },
-  {
-    id: "icons-3",
-    label: "ThreeThousandIcons3",
-    x: 432,
-    y: 96,
-    Icon: ThreeThousandIcons3,
-  },
-  {
-    id: "icons-7",
-    label: "ThreeThousandIcons7",
+    id: "throwback-folder",
+    label: "#tbt 2010",
     x: 88,
-    y: 224,
-    Icon: ThreeThousandIcons7,
-  },
-  {
-    id: "acidx-press",
-    label: "AcidxPress",
-    x: 256,
-    y: 224,
-    Icon: AcidxPress,
+    y: 208,
+    imageSrc: "/folder.svg",
   },
 ];
 
@@ -61,10 +34,16 @@ type DragState = {
   offsetY: number;
 } | null;
 
-export default function DesktopIcons() {
+export default function DesktopIcons({
+  onOpenThrowback,
+}: {
+  onOpenThrowback?: () => void;
+}) {
   const [icons, setIcons] = useState(INITIAL_ICONS);
   const [dragging, setDragging] = useState<DragState>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragIntentRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     if (!dragging) {
@@ -76,6 +55,15 @@ export default function DesktopIcons() {
 
       if (!container) {
         return;
+      }
+
+      if (dragIntentRef.current) {
+        const deltaX = Math.abs(event.clientX - dragIntentRef.current.startX);
+        const deltaY = Math.abs(event.clientY - dragIntentRef.current.startY);
+
+        if (deltaX > 4 || deltaY > 4) {
+          suppressClickRef.current = true;
+        }
       }
 
       const bounds = container.getBoundingClientRect();
@@ -97,6 +85,7 @@ export default function DesktopIcons() {
 
     const handlePointerUp = () => {
       setDragging(null);
+      dragIntentRef.current = null;
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -110,7 +99,7 @@ export default function DesktopIcons() {
 
   return (
     <div ref={containerRef} className="relative min-h-screen w-full">
-      {icons.map(({ id, label, x, y, Icon }) => (
+      {icons.map(({ id, label, x, y, Icon, imageSrc }) => (
         <button
           key={id}
           type="button"
@@ -119,17 +108,39 @@ export default function DesktopIcons() {
             const target = event.currentTarget.getBoundingClientRect();
 
             event.currentTarget.setPointerCapture(event.pointerId);
+            dragIntentRef.current = {
+              id,
+              startX: event.clientX,
+              startY: event.clientY,
+            };
+            suppressClickRef.current = false;
             setDragging({
               id,
               offsetX: event.clientX - target.left,
               offsetY: event.clientY - target.top,
             });
           }}
+          onClick={() => {
+            if (id === "throwback-folder" && !suppressClickRef.current) {
+              onOpenThrowback?.();
+            }
+
+            suppressClickRef.current = false;
+          }}
           style={{ left: x, top: y }}
         >
-          <span className="pointer-events-none">
-            <Icon size={48} />
-          </span>
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt=""
+              className="pointer-events-none h-12 w-12 object-contain"
+              draggable={false}
+            />
+          ) : Icon ? (
+            <span className="pointer-events-none">
+              <Icon size={48} />
+            </span>
+          ) : null}
           <span className="pointer-events-none font-mono text-[15px] leading-none tracking-[0.01em] text-white">
             {label}
           </span>
