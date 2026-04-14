@@ -1,10 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 
 import { Button, Card } from "@/components/retroui";
 
-const TRACKS = Array.from({ length: 12 }, () => "music name");
+type LocalTrack = {
+  id: string;
+  title: string;
+  src: string;
+  artist: string;
+};
+
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "0:00";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
 
 function WindowIcon() {
   return (
@@ -70,33 +87,6 @@ function PreviousIcon() {
   );
 }
 
-function TransportControls() {
-  return (
-    <div className="mt-3.5 flex items-center justify-center gap-8">
-      <Button
-        variant="ghost"
-        className="h-auto p-0 font-sans text-black hover:bg-transparent"
-      >
-        <PreviousIcon />
-      </Button>
-      <Button
-        variant="outline"
-        className="h-10 w-10 rounded-full border-black bg-white p-0 text-black shadow-none transition-none hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0 hover:bg-white active:bg-white hover:shadow-none active:shadow-none"
-      >
-        <span className="scale-175">
-          <PauseIcon />
-        </span>
-      </Button>
-      <Button
-        variant="ghost"
-        className="h-auto p-0 font-sans text-black hover:bg-transparent"
-      >
-        <NextIcon />
-      </Button>
-    </div>
-  );
-}
-
 function HeaderControls({
   expanded,
   onClose,
@@ -136,95 +126,622 @@ function HeaderControls({
   );
 }
 
-function CompactPlayer() {
+function LibraryActionButton({
+  disabled,
+  label,
+  onClick,
+}: {
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-8 rounded-none border-black bg-white px-3 font-mono text-[13px] leading-none text-black shadow-none transition-none hover:translate-x-0 hover:translate-y-0 hover:bg-white hover:shadow-none active:translate-x-0 active:translate-y-0 active:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {label}
+    </Button>
+  );
+}
+
+function ProgressBar({
+  currentTime,
+  duration,
+  onSeek,
+}: {
+  currentTime: number;
+  duration: number;
+  onSeek: (value: number) => void;
+}) {
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div>
+      <div className="relative h-3.5 w-full border-2 border-black bg-white">
+        <div
+          className="h-full border-r-2 border-black bg-primary"
+          style={{ width: `${progressPercent}%` }}
+        />
+        <div
+          className="absolute top-1/2 h-3.5 w-3 -translate-y-1/2 border-2 border-black bg-zinc-100"
+          style={{ left: `calc(${progressPercent}% - 6px)` }}
+        />
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={(event) => onSeek(Number(event.target.value))}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          aria-label="Seek through track"
+          disabled={duration <= 0}
+        />
+      </div>
+
+      <div className="mt-2 flex items-center justify-between font-mono text-[12px] leading-none text-black/80">
+        <span>{formatTime(currentTime)}</span>
+        <span>{formatTime(duration)}</span>
+      </div>
+    </div>
+  );
+}
+
+function TransportControls({
+  canPlay,
+  isPlaying,
+  onNext,
+  onPrevious,
+  onTogglePlayback,
+}: {
+  canPlay: boolean;
+  isPlaying: boolean;
+  onNext: () => void;
+  onPrevious: () => void;
+  onTogglePlayback: () => void;
+}) {
+  return (
+    <div className="mt-3.5 flex items-center justify-center gap-8">
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-auto p-0 font-sans text-black hover:bg-transparent disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={onPrevious}
+        disabled={!canPlay}
+      >
+        <PreviousIcon />
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 w-10 rounded-full border-black bg-white p-0 text-black shadow-none transition-none hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0 hover:bg-white active:bg-white hover:shadow-none active:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={onTogglePlayback}
+        disabled={!canPlay}
+      >
+        <span className="scale-175">{isPlaying ? <PauseIcon /> : <PlayIcon />}</span>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-auto p-0 font-sans text-black hover:bg-transparent disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={onNext}
+        disabled={!canPlay}
+      >
+        <NextIcon />
+      </Button>
+    </div>
+  );
+}
+
+function EmptyPlayerState({
+  isLoading,
+  message,
+  onRefresh,
+}: {
+  isLoading: boolean;
+  message: string;
+  onRefresh?: () => void;
+}) {
+  return (
+    <div className="flex min-h-[260px] flex-col items-center justify-center px-6 py-8 text-center">
+      <p className="font-mono text-[15px] leading-none text-black">
+        {isLoading ? "Loading library" : "No tracks found"}
+      </p>
+      <p className="mt-3 max-w-[260px] font-mono text-[13px] leading-5 text-black/70">
+        {message}
+      </p>
+      <p className="mt-2 font-mono text-[12px] leading-5 text-black/60">
+        Drop `.mp3` files into `public/audio`, then refresh the library.
+      </p>
+      {onRefresh ? (
+        <div className="mt-5">
+          <LibraryActionButton
+            label={isLoading ? "refreshing..." : "refresh library"}
+            onClick={onRefresh}
+            disabled={isLoading}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PlaylistTitle({
+  active,
+  title,
+}: {
+  active: boolean;
+  title: string;
+}) {
+  const containerRef = useRef<HTMLSpanElement | null>(null);
+  const contentRef = useRef<HTMLSpanElement | null>(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const measure = () => {
+      const container = containerRef.current;
+      const content = contentRef.current;
+
+      if (!container || !content) {
+        return;
+      }
+
+      setShouldScroll(content.scrollWidth > container.clientWidth + 1);
+    };
+
+    measure();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            measure();
+          });
+
+    if (resizeObserver) {
+      if (containerRef.current) {
+        resizeObserver.observe(containerRef.current);
+      }
+
+      if (contentRef.current) {
+        resizeObserver.observe(contentRef.current);
+      }
+    }
+
+    return () => {
+      resizeObserver?.disconnect();
+    };
+  }, [active, title]);
+
+  return (
+    <span ref={containerRef} className="block overflow-hidden">
+      {active && shouldScroll ? (
+        <span className="player-marquee inline-flex min-w-full gap-6 whitespace-nowrap pr-6">
+          <span ref={contentRef}>{title}</span>
+          <span aria-hidden="true">{title}</span>
+        </span>
+      ) : (
+        <span ref={contentRef} className={active ? "block" : "block truncate"}>
+          {title}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function CompactPlayer({
+  currentTime,
+  currentTrack,
+  duration,
+  emptyMessage,
+  isLoading,
+  isPlaying,
+  onNext,
+  onPrevious,
+  onSeek,
+  onTogglePlayback,
+}: {
+  currentTime: number;
+  currentTrack: LocalTrack | null;
+  duration: number;
+  emptyMessage: string;
+  isLoading: boolean;
+  isPlaying: boolean;
+  onNext: () => void;
+  onPrevious: () => void;
+  onSeek: (value: number) => void;
+  onTogglePlayback: () => void;
+}) {
+  if (!currentTrack) {
+    return (
+      <Card.Content className="px-5 pb-5 pt-3.5">
+        <EmptyPlayerState isLoading={isLoading} message={emptyMessage} />
+      </Card.Content>
+    );
+  }
+
   return (
     <Card.Content className="px-5 pb-5 pt-3.5">
       <p className="text-center font-mono text-[15px] leading-none text-black">
-        Punk Anthem Music
+        {currentTrack.title}
+      </p>
+
+      <p className="mt-2 text-center font-mono text-[12px] leading-none text-black/70">
+        {currentTrack.artist}
       </p>
 
       <div className="mt-3.5">
-        <div className="relative h-3.5 w-full border-2 border-black bg-white">
-          <div className="h-full w-[48%] border-r-2 border-black bg-primary" />
-          <div className="absolute left-[47%] top-1/2 h-3.5 w-3 -translate-y-1/2 border-2 border-black bg-zinc-100" />
-        </div>
+        <ProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
       </div>
 
-      <TransportControls />
+      <TransportControls
+        canPlay
+        isPlaying={isPlaying}
+        onNext={onNext}
+        onPrevious={onPrevious}
+        onTogglePlayback={onTogglePlayback}
+      />
     </Card.Content>
   );
 }
 
-function ExpandedPlayer() {
+function ExpandedPlayer({
+  currentTime,
+  currentTrack,
+  currentTrackIndex,
+  duration,
+  emptyMessage,
+  isLoading,
+  isPlaying,
+  onNext,
+  onPrevious,
+  onSeek,
+  onSelectTrack,
+  onTogglePlayback,
+  tracks,
+}: {
+  currentTime: number;
+  currentTrack: LocalTrack | null;
+  currentTrackIndex: number;
+  duration: number;
+  emptyMessage: string;
+  isLoading: boolean;
+  isPlaying: boolean;
+  onNext: () => void;
+  onPrevious: () => void;
+  onSeek: (value: number) => void;
+  onSelectTrack: (index: number) => void;
+  onTogglePlayback: () => void;
+  tracks: LocalTrack[];
+}) {
   return (
     <Card.Content className="grid grid-cols-[182px_1fr] p-0">
       <div className="border-r-2 border-black bg-white">
-        <div className="max-h-[430px] overflow-hidden">
-          {TRACKS.map((track, index) => (
-            <div
-              key={`${track}-${index}`}
-              className={
-                index === 6
-                  ? "border-y-2 border-black bg-primary px-3 py-1.5 font-mono text-[15px] leading-none text-black"
-                  : "px-3 py-1.5 font-mono text-[15px] leading-none text-black"
-              }
-            >
-              {track}
-            </div>
-          ))}
-        </div>
+        {tracks.length > 0 ? (
+          <div className="max-h-[430px] overflow-x-hidden overflow-y-auto">
+            {tracks.map((track, index) => {
+              const active = index === currentTrackIndex;
+
+              return (
+                <button
+                  key={track.id}
+                  type="button"
+                  className={
+                    active
+                      ? index === 0
+                        ? "block w-full bg-primary/20 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_-2px_0_0_#000]"
+                        : "block w-full bg-primary/20 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]"
+                      : "block w-full px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black hover:bg-black/5"
+                  }
+                  onClick={() => onSelectTrack(index)}
+                >
+                  <PlaylistTitle active={active} title={track.title} />
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyPlayerState isLoading={isLoading} message={emptyMessage} />
+        )}
       </div>
 
       <div className="bg-white px-7 pb-6 pt-5">
         <div className="border-2 border-dashed border-black/15 bg-[linear-gradient(45deg,rgba(0,0,0,0.045)_25%,transparent_25%,transparent_75%,rgba(0,0,0,0.045)_75%),linear-gradient(45deg,rgba(0,0,0,0.045)_25%,transparent_25%,transparent_75%,rgba(0,0,0,0.045)_75%)] bg-[length:36px_36px] bg-[position:0_0,18px_18px]">
-          <img
+          <Image
             src="/images/punk.svg"
             alt="retro player album"
+            width={960}
+            height={720}
             className="aspect-[4/3] w-full object-cover opacity-85 mix-blend-multiply"
           />
         </div>
 
         <p className="mt-5 text-center font-mono text-[15px] leading-none text-black">
-          Punk Anthem Music
+          {currentTrack ? currentTrack.title : "No track selected"}
+        </p>
+
+        <p className="mt-2 text-center font-mono text-[12px] leading-none text-black/70">
+          {currentTrack ? currentTrack.artist : "Drop MP3s into public/audio"}
         </p>
 
         <div className="mt-3.5">
-          <div className="relative h-3.5 w-full border-2 border-black bg-white">
-            <div className="h-full w-[48%] border-r-2 border-black bg-primary" />
-            <div className="absolute left-[47%] top-1/2 h-3.5 w-3 -translate-y-1/2 border-2 border-black bg-zinc-100" />
-          </div>
+          <ProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
         </div>
 
-        <TransportControls />
+        <TransportControls
+          canPlay={Boolean(currentTrack)}
+          isPlaying={isPlaying}
+          onNext={onNext}
+          onPrevious={onPrevious}
+          onTogglePlayback={onTogglePlayback}
+        />
       </div>
     </Card.Content>
   );
 }
 
-export default function RetroPlayerStyle({ onClose }: { onClose: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+export default function RetroPlayerStyle({
+  isVisible,
+  onClose,
+}: {
+  isVisible: boolean;
+  onClose: () => void;
+}) {
+  const [displayMode, setDisplayMode] = useState<"compact" | "expanded">("compact");
+  const [shellExpanded, setShellExpanded] = useState(false);
+  const [pendingDisplayMode, setPendingDisplayMode] = useState<"compact" | "expanded" | null>(
+    null,
+  );
+  const [tracks, setTracks] = useState<LocalTrack[]>([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [emptyMessage, setEmptyMessage] = useState(
+    "Your playlist is empty right now.",
+  );
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playRequestedRef = useRef(false);
+
+  const currentTrack = tracks[currentTrackIndex] ?? null;
+  const currentSource = useMemo(() => currentTrack?.src ?? "", [currentTrack]);
+
+  const loadLibrary = async () => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/tracks", { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("Failed to load track library.");
+      }
+
+      const data = (await response.json()) as { tracks: LocalTrack[] };
+      const nextTracks = data.tracks ?? [];
+
+      setTracks(nextTracks);
+      setCurrentTrackIndex((currentIndex) =>
+        nextTracks.length === 0 ? 0 : Math.min(currentIndex, nextTracks.length - 1),
+      );
+      setEmptyMessage(
+        nextTracks.length === 0
+          ? "Your playlist is empty right now."
+          : "Library loaded successfully.",
+      );
+    } catch {
+      setTracks([]);
+      setCurrentTrackIndex(0);
+      setEmptyMessage("Could not load the library from public/audio.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadLibrary();
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    if (!currentSource) {
+      audio.pause();
+      setCurrentTime(0);
+      setDuration(0);
+      return;
+    }
+
+    audio.load();
+
+    if (!playRequestedRef.current) {
+      return;
+    }
+
+    playRequestedRef.current = false;
+    void audio.play().catch(() => {
+      setIsPlaying(false);
+    });
+  }, [currentSource]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio || isVisible) {
+      return;
+    }
+
+    playRequestedRef.current = false;
+    audio.pause();
+  }, [isVisible]);
+
+  const handleTogglePlayback = () => {
+    const audio = audioRef.current;
+
+    if (!audio || !currentTrack) {
+      return;
+    }
+
+    if (audio.paused) {
+      playRequestedRef.current = false;
+      void audio.play().catch(() => {
+        setIsPlaying(false);
+      });
+      return;
+    }
+
+    audio.pause();
+  };
+
+  const jumpToTrack = (index: number) => {
+    if (!tracks[index]) {
+      return;
+    }
+
+    playRequestedRef.current = true;
+    setCurrentTrackIndex(index);
+  };
+
+  const handlePrevious = () => {
+    if (tracks.length === 0) {
+      return;
+    }
+
+    const nextIndex = currentTrackIndex === 0 ? tracks.length - 1 : currentTrackIndex - 1;
+    jumpToTrack(nextIndex);
+  };
+
+  const handleNext = () => {
+    if (tracks.length === 0) {
+      return;
+    }
+
+    const nextIndex = currentTrackIndex === tracks.length - 1 ? 0 : currentTrackIndex + 1;
+    jumpToTrack(nextIndex);
+  };
+
+  const handleSeek = (value: number) => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    audio.currentTime = value;
+    setCurrentTime(value);
+  };
+
+  const handleClosePlayer = () => {
+    setPendingDisplayMode(null);
+    setDisplayMode("compact");
+    setShellExpanded(false);
+    onClose();
+  };
+
+  const handleToggleWindow = () => {
+    if (pendingDisplayMode) {
+      return;
+    }
+
+    if (shellExpanded) {
+      setPendingDisplayMode("compact");
+      setShellExpanded(false);
+      return;
+    }
+
+    setPendingDisplayMode("expanded");
+    setShellExpanded(true);
+  };
+
+  const playerBody =
+    displayMode === "expanded" ? (
+      <ExpandedPlayer
+        currentTime={currentTime}
+        currentTrack={currentTrack}
+        currentTrackIndex={currentTrackIndex}
+        duration={duration}
+        emptyMessage={emptyMessage}
+        isLoading={isLoading}
+        isPlaying={isPlaying}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        onSeek={handleSeek}
+        onSelectTrack={jumpToTrack}
+        onTogglePlayback={handleTogglePlayback}
+        tracks={tracks}
+      />
+    ) : (
+      <CompactPlayer
+        currentTime={currentTime}
+        currentTrack={currentTrack}
+        duration={duration}
+        emptyMessage={emptyMessage}
+        isLoading={isLoading}
+        isPlaying={isPlaying}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        onSeek={handleSeek}
+        onTogglePlayback={handleTogglePlayback}
+      />
+    );
 
   return (
     <Card
       className={
-        expanded
-          ? "w-[640px] overflow-hidden rounded-none shadow-none"
-          : "w-[320px] overflow-hidden rounded-none shadow-none"
+        shellExpanded
+          ? "w-[640px] overflow-hidden rounded-none shadow-none transition-[width] duration-220 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          : "w-[320px] overflow-hidden rounded-none shadow-none transition-[width] duration-220 ease-[cubic-bezier(0.4,0,0.2,1)]"
       }
+      onTransitionEnd={(event) => {
+        if (
+          event.target !== event.currentTarget ||
+          event.propertyName !== "width" ||
+          !pendingDisplayMode
+        ) {
+          return;
+        }
+
+        setDisplayMode(pendingDisplayMode);
+        setPendingDisplayMode(null);
+      }}
     >
+      <audio
+        ref={audioRef}
+        src={currentSource || undefined}
+        preload="metadata"
+        onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
+        onEnded={handleNext}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+      />
+
       <Card.Header
         data-player-drag-handle
         className="flex cursor-grab flex-row items-center justify-between border-b-2 border-black bg-primary px-3.5 py-1.5 select-none active:cursor-grabbing"
       >
         <p className="font-mono text-[15px] leading-none text-black">media player</p>
         <HeaderControls
-          expanded={expanded}
-          onClose={onClose}
-          onToggle={() => setExpanded((current) => !current)}
+          expanded={shellExpanded}
+          onClose={handleClosePlayer}
+          onToggle={handleToggleWindow}
         />
       </Card.Header>
 
-      {expanded ? <ExpandedPlayer /> : <CompactPlayer />}
+      {playerBody}
     </Card>
   );
 }

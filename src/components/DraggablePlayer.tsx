@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import RetroPlayerStyle from "@/components/RetroPlayerStyle";
+import { cn } from "@/lib/utils";
 
 type DragState = {
   offsetX: number;
@@ -10,39 +11,76 @@ type DragState = {
 } | null;
 
 export default function DraggablePlayer({
+  openVersion,
   visible,
   onClose,
 }: {
+  openVersion: number;
   visible: boolean;
   onClose: () => void;
 }) {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [ready, setReady] = useState(false);
+  const [position, setPosition] = useState<{ right: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<DragState>(null);
   const playerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const updateInitialPosition = () => {
+    let resetFrame = 0;
+    let lockFrame = 0;
+
+    if (!visible) {
+      return;
+    }
+
+    resetFrame = window.requestAnimationFrame(() => {
+      setPosition(null);
+
+      lockFrame = window.requestAnimationFrame(() => {
+        const player = playerRef.current;
+
+        if (!player) {
+          return;
+        }
+
+        const bounds = player.getBoundingClientRect();
+        setPosition({
+          right: Math.round(window.innerWidth - bounds.right),
+          y: Math.round(bounds.top),
+        });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(resetFrame);
+      window.cancelAnimationFrame(lockFrame);
+    };
+  }, [openVersion, visible]);
+
+  useEffect(() => {
+    const clampPosition = () => {
       const player = playerRef.current;
 
-      if (!player) {
+      if (!player || !position) {
         return;
       }
 
-      setPosition({
-        x: Math.max(24, window.innerWidth - player.offsetWidth - 40),
-        y: 40,
-      });
-      setReady(true);
+      setPosition((current) => ({
+        right: Math.max(
+          16,
+          Math.min(current?.right ?? 16, window.innerWidth - player.offsetWidth - 16),
+        ),
+        y: Math.max(
+          16,
+          Math.min(current?.y ?? 16, window.innerHeight - player.offsetHeight - 16),
+        ),
+      }));
     };
 
-    updateInitialPosition();
-    window.addEventListener("resize", updateInitialPosition);
+    window.addEventListener("resize", clampPosition);
 
     return () => {
-      window.removeEventListener("resize", updateInitialPosition);
+      window.removeEventListener("resize", clampPosition);
     };
-  }, []);
+  }, [position]);
 
   useEffect(() => {
     if (!dragging) {
@@ -60,7 +98,13 @@ export default function DraggablePlayer({
       const nextY = event.clientY - dragging.offsetY;
 
       setPosition({
-        x: Math.max(16, Math.min(nextX, window.innerWidth - player.offsetWidth - 16)),
+        right: Math.max(
+          16,
+          Math.min(
+            window.innerWidth - nextX - player.offsetWidth,
+            window.innerWidth - player.offsetWidth - 16,
+          ),
+        ),
         y: Math.max(16, Math.min(nextY, window.innerHeight - player.offsetHeight - 16)),
       });
     };
@@ -78,15 +122,15 @@ export default function DraggablePlayer({
     };
   }, [dragging]);
 
-  if (!visible) {
-    return null;
-  }
-
   return (
     <div
       ref={playerRef}
-      className={ready ? "absolute z-20" : "absolute z-20 opacity-0"}
+      className={cn("absolute z-20", !visible && "pointer-events-none")}
       onPointerDown={(event) => {
+        if (!visible) {
+          return;
+        }
+
         const target = event.target;
 
         if (!(target instanceof Element)) {
@@ -99,14 +143,36 @@ export default function DraggablePlayer({
 
         const bounds = event.currentTarget.getBoundingClientRect();
 
+        if (!position) {
+          setPosition({
+            right: Math.round(window.innerWidth - bounds.right),
+            y: Math.round(bounds.top),
+          });
+        }
+
         setDragging({
           offsetX: event.clientX - bounds.left,
           offsetY: event.clientY - bounds.top,
         });
       }}
-      style={{ left: position.x, top: position.y }}
+      style={{
+        right: position ? position.right : "50%",
+        top: position ? position.y : "50%",
+        transform: position ? undefined : "translate(-50%, -50%)",
+      }}
     >
-      <RetroPlayerStyle onClose={onClose} />
+      <div
+        className={cn(
+          "origin-top-right transition-[opacity,transform] duration-160 ease-out will-change-[opacity,transform]",
+          visible ? "opacity-100 scale-100" : "opacity-0 scale-[0.985]",
+        )}
+        aria-hidden={!visible}
+      >
+        <RetroPlayerStyle
+          isVisible={visible}
+          onClose={onClose}
+        />
+      </div>
     </div>
   );
 }

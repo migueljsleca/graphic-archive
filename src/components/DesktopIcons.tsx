@@ -1,6 +1,7 @@
 "use client";
 
 import { type ComponentType, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 type IconEntry = {
   id: string;
@@ -26,6 +27,20 @@ const INITIAL_ICONS: IconEntry[] = [
     y: 208,
     imageSrc: "/folder.svg",
   },
+  {
+    id: "about-file",
+    label: "about.txt",
+    x: 216,
+    y: 96,
+    imageSrc: "/text.svg",
+  },
+  {
+    id: "image-file",
+    label: "image-3713.png",
+    x: 216,
+    y: 208,
+    imageSrc: "/image.svg",
+  },
 ];
 
 type DragState = {
@@ -35,8 +50,12 @@ type DragState = {
 } | null;
 
 export default function DesktopIcons({
+  onOpenAbout,
+  onOpenImage,
   onOpenThrowback,
 }: {
+  onOpenAbout?: () => void;
+  onOpenImage?: () => void;
   onOpenThrowback?: () => void;
 }) {
   const [icons, setIcons] = useState(INITIAL_ICONS);
@@ -121,6 +140,14 @@ export default function DesktopIcons({
             });
           }}
           onClick={() => {
+            if (id === "about-file" && !suppressClickRef.current) {
+              onOpenAbout?.();
+            }
+
+            if (id === "image-file" && !suppressClickRef.current) {
+              onOpenImage?.();
+            }
+
             if (id === "throwback-folder" && !suppressClickRef.current) {
               onOpenThrowback?.();
             }
@@ -130,10 +157,12 @@ export default function DesktopIcons({
           style={{ left: x, top: y }}
         >
           {imageSrc ? (
-            <img
+            <Image
               src={imageSrc}
               alt=""
-              className="pointer-events-none h-12 w-12 object-contain"
+              width={48}
+              height={48}
+              className="pointer-events-none h-[54px] w-[54px] object-contain"
               draggable={false}
             />
           ) : Icon ? (
