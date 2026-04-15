@@ -13,6 +13,8 @@
   --font-sans-retro: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-head-retro: "Archivo Black", var(--font-sans-retro);
   --font-mono-retro: "Space Mono", ui-monospace, monospace;
+  --font-display-grid-double: var(--font-bitcount-grid-double);
+  --font-display-grid-single: var(--font-bitcount-grid-single);
   --radius: 0;
   --paper: #f4f1e4;
   --mat-base: #026f68;
@@ -64,6 +66,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --font-bitcount-grid-double: var(--font-display-grid-double);
+  --font-bitcount-grid-single: var(--font-display-grid-single);
   --font-sans: var(--font-sans-retro);
   --font-mono: var(--font-mono-retro);
   --font-head: var(--font-head-retro);
@@ -126,6 +130,28 @@ body * {
   cursor: inherit;
 }
 
+.bitcount-grid-double {
+  font-family: var(--font-display-grid-double), system-ui;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings:
+    "slnt" 0,
+    "CRSV" 0.5,
+    "ELSH" 0,
+    "ELXP" 0;
+}
+
+.bitcount-grid-single {
+  font-family: var(--font-display-grid-single), system-ui;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings:
+    "slnt" 0,
+    "CRSV" 0.5,
+    "ELSH" 0,
+    "ELXP" 0;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -147,21 +173,10 @@ summary {
   min-height: 100vh;
   overflow: hidden;
   background-color: var(--mat-base);
-  background-image:
-    radial-gradient(
-      circle at center,
-      rgba(255, 255, 255, 0) 58%,
-      rgba(0, 0, 0, 0.16) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.08),
-      rgba(0, 0, 0, 0.12) 90%
-    ),
-    url("/mat-grid.svg");
-  background-position: 0 0, 0 0, 0 0;
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: 100% 100%, 100% 100%, 120px 120px;
+  background-image: url("/mat-grid.svg");
+  background-position: 0 0;
+  background-repeat: repeat;
+  background-size: 120px 120px;
 }
 
 .player-marquee {

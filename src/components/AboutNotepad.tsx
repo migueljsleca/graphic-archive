@@ -39,17 +39,22 @@ export default function AboutNotepad({ onClose }: { onClose: () => void }) {
       <Card.Content className="bg-[#fafafa] px-5 py-4">
         <div className="space-y-4 font-mono text-[14px] leading-6 text-black">
           <p>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
-            tempor incididunt ut labore et dolore magna aliqua.
+            hey there, welcome to my graphic archive
           </p>
           <p>
-            Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi
-            ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-            reprehenderit in voluptate velit esse cillum dolore.
+            here you can find some of my past self eheh
           </p>
           <p>
-            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
-            officia deserunt mollit anim id est laborum.
+            when i started in the design field, i was actually more of a generalist
+            and graphic designer
+          </p>
+          <p>
+            obsessed with making posters, typography, threshold and halftone
+            effects, visual identities, riso printing, etc etc
+          </p>
+          <p>
+            i still love these, but right now my heart is more on the digital/web
+            side &lt;3
           </p>
         </div>
       </Card.Content>

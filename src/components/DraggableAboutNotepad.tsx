@@ -13,9 +13,13 @@ type DragState = {
 export default function DraggableAboutNotepad({
   visible,
   onClose,
+  onFocus,
+  zIndex,
 }: {
   visible: boolean;
   onClose: () => void;
+  onFocus?: () => void;
+  zIndex?: number;
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<DragState>(null);
@@ -98,7 +102,12 @@ export default function DraggableAboutNotepad({
   return (
     <div
       ref={noteRef}
-      className={cn("absolute z-20", !visible && "pointer-events-none")}
+      className={cn("absolute", !visible && "pointer-events-none")}
+      onPointerDownCapture={() => {
+        if (visible) {
+          onFocus?.();
+        }
+      }}
       onPointerDown={(event) => {
         if (!visible) {
           return;
@@ -129,6 +138,7 @@ export default function DraggableAboutNotepad({
         left: position ? position.x : "50%",
         top: position ? position.y : "50%",
         transform: position ? undefined : "translate(-50%, -50%)",
+        zIndex,
       }}
     >
       <div

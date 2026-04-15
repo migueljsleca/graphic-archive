@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 
 import { Button, Card } from "@/components/retroui";
 
@@ -337,6 +336,60 @@ function PlaylistTitle({
   );
 }
 
+function DotMatrixVisualizer({
+  columnHeights,
+}: {
+  columnHeights: number[];
+}) {
+  const spokes = columnHeights.length;
+  const viewBoxSize = 220;
+  const center = viewBoxSize / 2;
+  const baseRadius = 58;
+  const dotSpacing = 6.5;
+  const maxDots = 9;
+
+  return (
+    <div className="mx-auto aspect-square w-[84%]">
+      <svg
+        aria-hidden="true"
+        viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+        className="h-full w-full"
+      >
+        {Array.from({ length: spokes }, (_, spoke) => {
+          const angle = (spoke / spokes) * Math.PI * 2 - Math.PI / 2;
+          const x = Math.cos(angle);
+          const y = Math.sin(angle);
+          const amplitude = Math.max(1.15, Math.min(maxDots, columnHeights[spoke] ?? 1.15));
+
+          return Array.from({ length: maxDots }, (_, dotIndex) => {
+            const strength = Math.max(
+              0,
+              Math.min(1, amplitude - dotIndex),
+            );
+            const radius = baseRadius + dotIndex * dotSpacing;
+            const cx = center + x * radius;
+            const cy = center + y * radius;
+            const dotRadius = 1.25 + strength * 0.45;
+            const opacity = 0.04 + strength * 0.96;
+
+            return (
+              <circle
+                key={`${spoke}-${dotIndex}`}
+                cx={cx}
+                cy={cy}
+                r={dotRadius}
+                fill="currentColor"
+                className="text-black"
+                opacity={opacity}
+              />
+            );
+          });
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function CompactPlayer({
   currentTime,
   currentTrack,
@@ -407,6 +460,7 @@ function ExpandedPlayer({
   onSelectTrack,
   onTogglePlayback,
   tracks,
+  visualizerHeights,
 }: {
   currentTime: number;
   currentTrack: LocalTrack | null;
@@ -421,6 +475,7 @@ function ExpandedPlayer({
   onSelectTrack: (index: number) => void;
   onTogglePlayback: () => void;
   tracks: LocalTrack[];
+  visualizerHeights: number[];
 }) {
   return (
     <Card.Content className="grid grid-cols-[182px_1fr] p-0">
@@ -454,25 +509,9 @@ function ExpandedPlayer({
       </div>
 
       <div className="bg-white px-7 pb-6 pt-5">
-        <div className="border-2 border-dashed border-black/15 bg-[linear-gradient(45deg,rgba(0,0,0,0.045)_25%,transparent_25%,transparent_75%,rgba(0,0,0,0.045)_75%),linear-gradient(45deg,rgba(0,0,0,0.045)_25%,transparent_25%,transparent_75%,rgba(0,0,0,0.045)_75%)] bg-[length:36px_36px] bg-[position:0_0,18px_18px]">
-          <Image
-            src="/images/punk.svg"
-            alt="retro player album"
-            width={960}
-            height={720}
-            className="aspect-[4/3] w-full object-cover opacity-85 mix-blend-multiply"
-          />
-        </div>
+        <DotMatrixVisualizer columnHeights={visualizerHeights} />
 
-        <p className="mt-5 text-center font-mono text-[15px] leading-none text-black">
-          {currentTrack ? currentTrack.title : "No track selected"}
-        </p>
-
-        <p className="mt-2 text-center font-mono text-[12px] leading-none text-black/70">
-          {currentTrack ? currentTrack.artist : "Drop MP3s into public/audio"}
-        </p>
-
-        <div className="mt-3.5">
+        <div className="mt-5">
           <ProgressBar currentTime={currentTime} duration={duration} onSeek={onSeek} />
         </div>
 
@@ -506,15 +545,74 @@ export default function RetroPlayerStyle({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [visualizerHeights, setVisualizerHeights] = useState<number[]>(
+    Array.from({ length: 56 }, () => 1.15),
+  );
   const [emptyMessage, setEmptyMessage] = useState(
     "Your playlist is empty right now.",
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const analysisFrameRef = useRef<number | null>(null);
+  const frequencyDataRef = useRef<Uint8Array | null>(null);
+  const timeDomainDataRef = useRef<Uint8Array | null>(null);
+  const visualizerSmoothRef = useRef<number[]>(Array.from({ length: 56 }, () => 1.15));
   const playRequestedRef = useRef(false);
 
   const currentTrack = tracks[currentTrackIndex] ?? null;
   const currentSource = useMemo(() => currentTrack?.src ?? "", [currentTrack]);
+  const visualizerColumns = 56;
+
+  const stopVisualizer = () => {
+    if (analysisFrameRef.current !== null) {
+      window.cancelAnimationFrame(analysisFrameRef.current);
+      analysisFrameRef.current = null;
+    }
+  };
+
+  const ensureAudioAnalysis = () => {
+    const audio = audioRef.current;
+
+    if (!audio || typeof window === "undefined") {
+      return null;
+    }
+
+    const audioWindow = window as Window & {
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioContextClass = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return null;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContextClass();
+    }
+
+    if (!analyserRef.current) {
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      analyserRef.current.smoothingTimeConstant = 0.46;
+      frequencyDataRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+      timeDomainDataRef.current = new Uint8Array(analyserRef.current.fftSize);
+    }
+
+    if (!mediaSourceRef.current) {
+      mediaSourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+      mediaSourceRef.current.connect(analyserRef.current);
+      analyserRef.current.connect(audioContextRef.current.destination);
+    }
+
+    return {
+      context: audioContextRef.current,
+      analyser: analyserRef.current,
+      data: frequencyDataRef.current,
+    };
+  };
 
   const loadLibrary = async () => {
     setIsLoading(true);
@@ -578,6 +676,12 @@ export default function RetroPlayerStyle({
   }, [currentSource]);
 
   useEffect(() => {
+    const resetLevels = Array.from({ length: visualizerColumns }, () => 1.15);
+    visualizerSmoothRef.current = resetLevels;
+    setVisualizerHeights(resetLevels);
+  }, [currentSource, visualizerColumns]);
+
+  useEffect(() => {
     const audio = audioRef.current;
 
     if (!audio || isVisible) {
@@ -588,6 +692,114 @@ export default function RetroPlayerStyle({
     audio.pause();
   }, [isVisible]);
 
+  useEffect(() => {
+    if (!isPlaying) {
+      stopVisualizer();
+      const resetLevels = Array.from({ length: visualizerColumns }, () => 1.15);
+      visualizerSmoothRef.current = resetLevels;
+      setVisualizerHeights(resetLevels);
+      return;
+    }
+
+    const analysis = ensureAudioAnalysis();
+
+    if (!analysis) {
+      return;
+    }
+
+    void analysis.context.resume().catch(() => {});
+
+    const tick = () => {
+      const data = analysis.data;
+      const timeData = timeDomainDataRef.current;
+
+      if (!data || !timeData) {
+        return;
+      }
+
+      analysis.analyser.getByteFrequencyData(data);
+      analysis.analyser.getByteTimeDomainData(timeData);
+
+      let rmsSum = 0;
+
+      for (let index = 0; index < timeData.length; index += 1) {
+        const normalized = ((timeData[index] ?? 128) - 128) / 128;
+        rmsSum += normalized * normalized;
+      }
+
+      const rms = Math.sqrt(rmsSum / timeData.length);
+      const usableBins = Math.max(40, Math.floor(data.length * 0.82));
+      const rawHeights = Array.from({ length: visualizerColumns }, (_, index) => {
+        const progress = index / visualizerColumns;
+        const sampleIndex = Math.floor(progress * timeData.length);
+        const currentSample = Math.abs(((timeData[sampleIndex] ?? 128) - 128) / 128);
+        const prevSample = Math.abs(
+          ((timeData[(sampleIndex - 1 + timeData.length) % timeData.length] ?? 128) - 128) /
+            128,
+        );
+        const nextSample = Math.abs(
+          ((timeData[(sampleIndex + 1) % timeData.length] ?? 128) - 128) / 128,
+        );
+        const wave = currentSample * 0.45 + Math.max(prevSample, nextSample) * 0.55;
+
+        const start = Math.floor(Math.pow(progress, 1.2) * usableBins);
+        const end = Math.floor(Math.pow((index + 1) / visualizerColumns, 1.2) * usableBins);
+        const sliceEnd = Math.max(start + 1, end);
+        let total = 0;
+        let peak = 0;
+
+        for (let bandIndex = start; bandIndex < sliceEnd; bandIndex += 1) {
+          const value = data[bandIndex] ?? 0;
+          total += value;
+          peak = Math.max(peak, value);
+        }
+
+        const average = total / (sliceEnd - start);
+        const spectral = Math.min(1, (average * 0.2 + peak * 0.8) / 255);
+        const combined = Math.min(1, wave * 0.72 + spectral * 0.55 + rms * 0.28);
+        const shaped = Math.pow(combined, 0.58);
+
+        return Math.max(1.15, Math.min(9, 1.15 + shaped * 7.85));
+      });
+      const circularHeights = rawHeights.map((height, index, values) => {
+        const previous = values[(index - 1 + values.length) % values.length] ?? height;
+        const next = values[(index + 1) % values.length] ?? height;
+        const farPrevious = values[(index - 2 + values.length) % values.length] ?? previous;
+        const farNext = values[(index + 2) % values.length] ?? next;
+        const blended =
+          height * 0.78 +
+          (previous + next) * 0.09 +
+          (farPrevious + farNext) * 0.02;
+
+        return Math.max(1.15, Math.min(9, blended));
+      });
+      const smoothedHeights = circularHeights.map((height, index) => {
+        const previous = visualizerSmoothRef.current[index] ?? 1.15;
+        const mix = height > previous ? 0.56 : 0.24;
+        const eased = previous + (height - previous) * mix;
+
+        return Math.max(1.15, Math.min(9, eased));
+      });
+
+      visualizerSmoothRef.current = smoothedHeights;
+      setVisualizerHeights(smoothedHeights);
+      analysisFrameRef.current = window.requestAnimationFrame(tick);
+    };
+
+    tick();
+
+    return () => {
+      stopVisualizer();
+    };
+  }, [isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      stopVisualizer();
+      void audioContextRef.current?.close().catch(() => {});
+    };
+  }, []);
+
   const handleTogglePlayback = () => {
     const audio = audioRef.current;
 
@@ -597,6 +809,8 @@ export default function RetroPlayerStyle({
 
     if (audio.paused) {
       playRequestedRef.current = false;
+      const analysis = ensureAudioAnalysis();
+      void analysis?.context.resume().catch(() => {});
       void audio.play().catch(() => {
         setIsPlaying(false);
       });
@@ -682,6 +896,7 @@ export default function RetroPlayerStyle({
         onSelectTrack={jumpToTrack}
         onTogglePlayback={handleTogglePlayback}
         tracks={tracks}
+        visualizerHeights={visualizerHeights}
       />
     ) : (
       <CompactPlayer
@@ -733,7 +948,7 @@ export default function RetroPlayerStyle({
         data-player-drag-handle
         className="flex cursor-grab flex-row items-center justify-between border-b-2 border-black bg-primary px-3.5 py-1.5 select-none active:cursor-grabbing"
       >
-        <p className="font-mono text-[15px] leading-none text-black">media player</p>
+        <p className="font-mono text-[15px] leading-none text-black">#tbt 2010</p>
         <HeaderControls
           expanded={shellExpanded}
           onClose={handleClosePlayer}

@@ -14,10 +14,14 @@ export default function DraggablePlayer({
   openVersion,
   visible,
   onClose,
+  onFocus,
+  zIndex,
 }: {
   openVersion: number;
   visible: boolean;
   onClose: () => void;
+  onFocus?: () => void;
+  zIndex?: number;
 }) {
   const [position, setPosition] = useState<{ right: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<DragState>(null);
@@ -125,7 +129,12 @@ export default function DraggablePlayer({
   return (
     <div
       ref={playerRef}
-      className={cn("absolute z-20", !visible && "pointer-events-none")}
+      className={cn("absolute", !visible && "pointer-events-none")}
+      onPointerDownCapture={() => {
+        if (visible) {
+          onFocus?.();
+        }
+      }}
       onPointerDown={(event) => {
         if (!visible) {
           return;
@@ -159,6 +168,7 @@ export default function DraggablePlayer({
         right: position ? position.right : "50%",
         top: position ? position.y : "50%",
         transform: position ? undefined : "translate(-50%, -50%)",
+        zIndex,
       }}
     >
       <div

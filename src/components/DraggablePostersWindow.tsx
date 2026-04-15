@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import ImagePreviewWindow from "@/components/ImagePreviewWindow";
+import PostersWindow from "@/components/PostersWindow";
 import { cn } from "@/lib/utils";
 
 type DragState = {
@@ -10,7 +10,7 @@ type DragState = {
   offsetY: number;
 } | null;
 
-export default function DraggableImagePreview({
+export default function DraggablePostersWindow({
   visible,
   onClose,
   onFocus,
@@ -23,7 +23,7 @@ export default function DraggableImagePreview({
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<DragState>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
+  const windowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let frame = 0;
@@ -34,8 +34,8 @@ export default function DraggableImagePreview({
 
     frame = window.requestAnimationFrame(() => {
       setPosition({
-        x: 320,
-        y: 110,
+        x: window.innerWidth * 0.05,
+        y: window.innerHeight * 0.05,
       });
     });
 
@@ -46,20 +46,20 @@ export default function DraggableImagePreview({
 
   useEffect(() => {
     const clampPosition = () => {
-      const preview = previewRef.current;
+      const element = windowRef.current;
 
-      if (!preview || !position) {
+      if (!element || !position) {
         return;
       }
 
       setPosition((current) => ({
         x: Math.max(
-          16,
-          Math.min(current?.x ?? 16, window.innerWidth - preview.offsetWidth - 16),
+          8,
+          Math.min(current?.x ?? 8, window.innerWidth - element.offsetWidth - 8),
         ),
         y: Math.max(
-          16,
-          Math.min(current?.y ?? 16, window.innerHeight - preview.offsetHeight - 16),
+          8,
+          Math.min(current?.y ?? 8, window.innerHeight - element.offsetHeight - 8),
         ),
       }));
     };
@@ -77,9 +77,9 @@ export default function DraggableImagePreview({
     }
 
     const handlePointerMove = (event: PointerEvent) => {
-      const preview = previewRef.current;
+      const element = windowRef.current;
 
-      if (!preview) {
+      if (!element) {
         return;
       }
 
@@ -87,8 +87,8 @@ export default function DraggableImagePreview({
       const nextY = event.clientY - dragging.offsetY;
 
       setPosition({
-        x: Math.max(16, Math.min(nextX, window.innerWidth - preview.offsetWidth - 16)),
-        y: Math.max(16, Math.min(nextY, window.innerHeight - preview.offsetHeight - 16)),
+        x: Math.max(8, Math.min(nextX, window.innerWidth - element.offsetWidth - 8)),
+        y: Math.max(8, Math.min(nextY, window.innerHeight - element.offsetHeight - 8)),
       });
     };
 
@@ -107,7 +107,7 @@ export default function DraggableImagePreview({
 
   return (
     <div
-      ref={previewRef}
+      ref={windowRef}
       className={cn("absolute", !visible && "pointer-events-none")}
       onPointerDownCapture={() => {
         if (visible) {
@@ -125,7 +125,7 @@ export default function DraggableImagePreview({
           return;
         }
 
-        if (!target.closest("[data-image-drag-handle]") || target.closest("button")) {
+        if (!target.closest("[data-posters-drag-handle]") || target.closest("button")) {
           return;
         }
 
@@ -141,9 +141,8 @@ export default function DraggableImagePreview({
         });
       }}
       style={{
-        left: position ? position.x : "50%",
-        top: position ? position.y : "50%",
-        transform: position ? undefined : "translate(-50%, -50%)",
+        left: position ? position.x : "5vw",
+        top: position ? position.y : "5vh",
         zIndex,
       }}
     >
@@ -154,7 +153,7 @@ export default function DraggableImagePreview({
         )}
         aria-hidden={!visible}
       >
-        <ImagePreviewWindow onClose={onClose} />
+        <PostersWindow onClose={onClose} />
       </div>
     </div>
   );
