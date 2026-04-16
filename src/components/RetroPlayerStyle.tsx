@@ -27,9 +27,9 @@ function WindowIcon() {
     <svg
       aria-hidden="true"
       viewBox="0 0 256 256"
-      className="size-4.5 fill-current"
+      className="size-4 fill-current"
     >
-      <path d="M216,44H40A20,20,0,0,0,20,64V192a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V64A20,20,0,0,0,216,44ZM44,68H212v48H136a12,12,0,0,0-12,12v60H44ZM148,188V140h64v48Z" />
+      <path d="M208,28H48A20,20,0,0,0,28,48V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V48A20,20,0,0,0,208,28Zm-4,176H52V52H204Z" />
     </svg>
   );
 }

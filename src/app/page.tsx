@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import DesktopIcons from "@/components/DesktopIcons";
 import DraggableAboutNotepad from "@/components/DraggableAboutNotepad";
+import DraggableEditorialWindow from "@/components/DraggableEditorialWindow";
 import DraggableImagePreview from "@/components/DraggableImagePreview";
 import DraggablePostersWindow from "@/components/DraggablePostersWindow";
 import DraggablePlayer from "@/components/DraggablePlayer";
@@ -21,6 +22,8 @@ type SettingsMode = "cursor" | "manual";
 
 export default function Home() {
   const [postersVisible, setPostersVisible] = useState(false);
+  const [socialMediaVisible, setSocialMediaVisible] = useState(false);
+  const [editorialVisible, setEditorialVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [imageVisible, setImageVisible] = useState(false);
   const [playerVisible, setPlayerVisible] = useState(false);
@@ -33,13 +36,15 @@ export default function Home() {
     style: "single",
   });
   const [settingsMode, setSettingsMode] = useState<SettingsMode>("cursor");
-  const nextWindowZRef = useRef(104);
+  const nextWindowZRef = useRef(107);
   const [windowZ, setWindowZ] = useState({
     posters: 101,
-    about: 102,
-    image: 103,
-    settings: 104,
-    player: 105,
+    socialMedia: 102,
+    editorial: 103,
+    about: 104,
+    image: 105,
+    settings: 106,
+    player: 107,
   });
 
   const bringWindowToFront = (windowName: keyof typeof windowZ) => {
@@ -83,6 +88,16 @@ export default function Home() {
     bringWindowToFront("about");
   };
 
+  const handleOpenSocialMedia = () => {
+    setSocialMediaVisible(true);
+    bringWindowToFront("socialMedia");
+  };
+
+  const handleOpenEditorial = () => {
+    setEditorialVisible(true);
+    bringWindowToFront("editorial");
+  };
+
   const handleOpenPosters = () => {
     setPostersVisible(true);
     bringWindowToFront("posters");
@@ -115,15 +130,33 @@ export default function Home() {
       />
       <DesktopIcons
         onOpenPosters={handleOpenPosters}
+        onOpenSocialMedia={handleOpenSocialMedia}
+        onOpenEditorial={handleOpenEditorial}
         onOpenAbout={handleOpenAbout}
         onOpenImage={handleOpenImage}
         onOpenThrowback={handleOpenThrowback}
       />
       <DraggablePostersWindow
+        apiPath="/api/posters"
+        title="posters + misc"
         visible={postersVisible}
         onClose={() => setPostersVisible(false)}
         onFocus={() => bringWindowToFront("posters")}
         zIndex={windowZ.posters}
+      />
+      <DraggablePostersWindow
+        apiPath="/api/social-media-graphics"
+        title="social media graphics"
+        visible={socialMediaVisible}
+        onClose={() => setSocialMediaVisible(false)}
+        onFocus={() => bringWindowToFront("socialMedia")}
+        zIndex={windowZ.socialMedia}
+      />
+      <DraggableEditorialWindow
+        visible={editorialVisible}
+        onClose={() => setEditorialVisible(false)}
+        onFocus={() => bringWindowToFront("editorial")}
+        zIndex={windowZ.editorial}
       />
       <DraggableAboutNotepad
         visible={aboutVisible}

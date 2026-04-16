@@ -13,50 +13,118 @@ type IconEntry = {
 };
 
 const DESKTOP_ICON_HEIGHT = 90;
-const DESKTOP_ICON_GAP = 22;
 const DEFAULT_VIEWPORT_HEIGHT = 900;
-const DESKTOP_LEFT_COLUMN_X = 88;
-const DESKTOP_RIGHT_COLUMN_X = 216;
-
-const getBottomGridY = (viewportHeight: number, row: number) => {
-  const gridHeight = DESKTOP_ICON_HEIGHT * 2 + DESKTOP_ICON_GAP;
-  const gridStart = Math.max(96, viewportHeight - gridHeight - 40);
-
-  return gridStart + row * (DESKTOP_ICON_HEIGHT + DESKTOP_ICON_GAP);
+const DEFAULT_VIEWPORT_WIDTH = 1600;
+const DEFAULT_ICON_LAYOUT = {
+  posters: { xRatio: 0.13, yRatio: 0.43 },
+  social: { xRatio: 0.14, yRatio: 0.67 },
+  editorial: { xRatio: 0.37, yRatio: 0.67 },
+  about: { xRatio: 0.23, yRatio: 0.54 },
+  image: { xRatio: 0.285, yRatio: 0.695 },
+  throwback: { xRatio: 0.325, yRatio: 0.495 },
 };
 
+const resolveIconPosition = (
+  viewportWidth: number,
+  viewportHeight: number,
+  xRatio: number,
+  yRatio: number,
+) => ({
+  x: Math.round(viewportWidth * xRatio),
+  y: Math.round(
+    Math.min(
+      viewportHeight * yRatio,
+      viewportHeight - DESKTOP_ICON_HEIGHT - 24,
+    ),
+  ),
+});
+
 const createInitialIcons = (
+  viewportWidth = DEFAULT_VIEWPORT_WIDTH,
   viewportHeight = DEFAULT_VIEWPORT_HEIGHT,
-): IconEntry[] => [
-  {
-    id: "vista-folder",
-    label: "posters",
-    x: DESKTOP_LEFT_COLUMN_X,
-    y: getBottomGridY(viewportHeight, 0),
-    imageSrc: "/folder.svg",
-  },
-  {
-    id: "throwback-folder",
-    label: "#tbt 2010",
-    x: DESKTOP_LEFT_COLUMN_X,
-    y: getBottomGridY(viewportHeight, 1),
-    imageSrc: "/music.svg",
-  },
-  {
-    id: "about-file",
-    label: "about.txt",
-    x: DESKTOP_RIGHT_COLUMN_X,
-    y: getBottomGridY(viewportHeight, 0),
-    imageSrc: "/text.svg",
-  },
-  {
-    id: "image-file",
-    label: "image-3713.png",
-    x: DESKTOP_RIGHT_COLUMN_X,
-    y: getBottomGridY(viewportHeight, 1),
-    imageSrc: "/image.svg",
-  },
-];
+): IconEntry[] => {
+  const postersPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.posters.xRatio,
+    DEFAULT_ICON_LAYOUT.posters.yRatio,
+  );
+  const socialPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.social.xRatio,
+    DEFAULT_ICON_LAYOUT.social.yRatio,
+  );
+  const aboutPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.about.xRatio,
+    DEFAULT_ICON_LAYOUT.about.yRatio,
+  );
+  const editorialPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.editorial.xRatio,
+    DEFAULT_ICON_LAYOUT.editorial.yRatio,
+  );
+  const imagePosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.image.xRatio,
+    DEFAULT_ICON_LAYOUT.image.yRatio,
+  );
+  const throwbackPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.throwback.xRatio,
+    DEFAULT_ICON_LAYOUT.throwback.yRatio,
+  );
+
+  return [
+    {
+      id: "vista-folder",
+      label: "posters + misc",
+      x: postersPosition.x,
+      y: postersPosition.y,
+      imageSrc: "/folder.svg",
+    },
+    {
+      id: "social-folder",
+      label: "social media graphics",
+      x: socialPosition.x,
+      y: socialPosition.y,
+      imageSrc: "/folder.svg",
+    },
+    {
+      id: "throwback-folder",
+      label: "#tbt 2010",
+      x: throwbackPosition.x,
+      y: throwbackPosition.y,
+      imageSrc: "/music.svg",
+    },
+    {
+      id: "editorial-folder",
+      label: "editorial",
+      x: editorialPosition.x,
+      y: editorialPosition.y,
+      imageSrc: "/folder.svg",
+    },
+    {
+      id: "about-file",
+      label: "about.txt",
+      x: aboutPosition.x,
+      y: aboutPosition.y,
+      imageSrc: "/text.svg",
+    },
+    {
+      id: "image-file",
+      label: "image-3713.png",
+      x: imagePosition.x,
+      y: imagePosition.y,
+      imageSrc: "/image.svg",
+    },
+  ];
+};
 
 type DragState = {
   id: string;
@@ -66,16 +134,22 @@ type DragState = {
 
 export default function DesktopIcons({
   onOpenPosters,
+  onOpenSocialMedia,
+  onOpenEditorial,
   onOpenAbout,
   onOpenImage,
   onOpenThrowback,
 }: {
   onOpenPosters?: () => void;
+  onOpenSocialMedia?: () => void;
+  onOpenEditorial?: () => void;
   onOpenAbout?: () => void;
   onOpenImage?: () => void;
   onOpenThrowback?: () => void;
 }) {
-  const [icons, setIcons] = useState<IconEntry[]>(() => createInitialIcons());
+  const [icons, setIcons] = useState<IconEntry[]>(() =>
+    createInitialIcons(),
+  );
   const [dragging, setDragging] = useState<DragState>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragIntentRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
@@ -83,7 +157,7 @@ export default function DesktopIcons({
 
   useEffect(() => {
     const syncToViewport = () => {
-      setIcons(createInitialIcons(window.innerHeight));
+      setIcons(createInitialIcons(window.innerWidth, window.innerHeight));
     };
 
     const frame = window.requestAnimationFrame(syncToViewport);
@@ -179,12 +253,20 @@ export default function DesktopIcons({
               onOpenAbout?.();
             }
 
-            if (id === "image-file" && !suppressClickRef.current) {
-              onOpenImage?.();
-            }
-
             if (id === "throwback-folder" && !suppressClickRef.current) {
               onOpenThrowback?.();
+            }
+
+            if (id === "social-folder" && !suppressClickRef.current) {
+              onOpenSocialMedia?.();
+            }
+
+            if (id === "editorial-folder" && !suppressClickRef.current) {
+              onOpenEditorial?.();
+            }
+
+            if (id === "image-file" && !suppressClickRef.current) {
+              onOpenImage?.();
             }
 
             suppressClickRef.current = false;

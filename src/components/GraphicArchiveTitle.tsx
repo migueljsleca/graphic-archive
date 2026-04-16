@@ -58,7 +58,7 @@ export default function GraphicArchiveTitle({
       <button
         type="button"
         aria-label="Open settings window"
-        className="pointer-events-auto absolute top-3 right-3 z-20 flex size-10 items-center justify-center border-2 border-black bg-primary text-black shadow-[3px_3px_0_0_#000] transition-transform hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+        className="pointer-events-auto absolute top-4 right-5 z-20 flex size-10 items-center justify-center border-2 border-black bg-primary text-black shadow-[3px_3px_0_0_#000] transition-transform hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
         onClick={onOpenSettings}
       >
         <svg

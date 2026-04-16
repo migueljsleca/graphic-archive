@@ -3,22 +3,12 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import PostersWindow from "@/components/PostersWindow";
+import EditorialWindow from "@/components/EditorialWindow";
 import { cn } from "@/lib/utils";
 
 type DragState = {
   offsetX: number;
   offsetY: number;
-} | null;
-
-type ResizeState = {
-  startX: number;
-  startY: number;
-  startLeft: number;
-  startTop: number;
-  startWidth: number;
-  startHeight: number;
-  edge: ResizeEdge;
 } | null;
 
 type ResizeEdge =
@@ -31,6 +21,16 @@ type ResizeEdge =
   | "bottom-right"
   | "bottom-left";
 
+type ResizeState = {
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  startWidth: number;
+  startHeight: number;
+  edge: ResizeEdge;
+} | null;
+
 type WindowBounds = {
   x: number;
   y: number;
@@ -38,11 +38,11 @@ type WindowBounds = {
   height: number;
 };
 
-const MIN_WIDTH = 360;
-const MIN_HEIGHT = 280;
+const MIN_WIDTH = 480;
+const MIN_HEIGHT = 340;
 const MAXIMIZED_VIEWPORT_RATIO = 0.98;
-const INITIAL_VIEWPORT_WIDTH_RATIO = 0.6;
-const INITIAL_VIEWPORT_HEIGHT_RATIO = 0.7;
+const INITIAL_VIEWPORT_WIDTH_RATIO = 0.72;
+const INITIAL_VIEWPORT_HEIGHT_RATIO = 0.78;
 
 const RESIZE_HANDLES: Array<{
   edge: ResizeEdge;
@@ -95,20 +95,16 @@ const RESIZE_HANDLES: Array<{
   },
 ];
 
-export default function DraggablePostersWindow({
+export default function DraggableEditorialWindow({
   visible,
   onClose,
   onFocus,
   zIndex,
-  title,
-  apiPath,
 }: {
   visible: boolean;
   onClose: () => void;
   onFocus?: () => void;
   zIndex?: number;
-  title: string;
-  apiPath: string;
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -140,8 +136,8 @@ export default function DraggablePostersWindow({
     frame = window.requestAnimationFrame(() => {
       if (!position) {
         setPosition({
-          x: window.innerWidth * 0.05,
-          y: window.innerHeight * 0.05,
+          x: window.innerWidth * 0.18,
+          y: window.innerHeight * 0.12,
         });
       }
 
@@ -194,14 +190,8 @@ export default function DraggablePostersWindow({
         };
 
         return {
-          x: Math.max(
-            0,
-            Math.min(current?.x ?? 0, window.innerWidth - currentSize.width),
-          ),
-          y: Math.max(
-            0,
-            Math.min(current?.y ?? 0, window.innerHeight - currentSize.height),
-          ),
+          x: Math.max(0, Math.min(current?.x ?? 0, window.innerWidth - currentSize.width)),
+          y: Math.max(0, Math.min(current?.y ?? 0, window.innerHeight - currentSize.height)),
         };
       });
     };
@@ -294,14 +284,8 @@ export default function DraggablePostersWindow({
         nextHeight = resizing.startHeight - (proposedTop - resizing.startTop);
       }
 
-      setPosition({
-        x: nextX,
-        y: nextY,
-      });
-      setSize({
-        width: nextWidth,
-        height: nextHeight,
-      });
+      setPosition({ x: nextX, y: nextY });
+      setSize({ width: nextWidth, height: nextHeight });
     };
 
     const handlePointerUp = () => {
@@ -315,23 +299,22 @@ export default function DraggablePostersWindow({
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
     };
-  }, [position, resizing]);
+  }, [resizing]);
 
   const handleToggleMaximize = () => {
-    const element = windowRef.current;
     const currentPosition = position;
     const currentSize = size;
 
-    if (!element || !currentPosition || !currentSize) {
+    if (!currentPosition || !currentSize) {
       return;
     }
 
     if (maximized) {
       const nextBounds = restoredBounds ?? {
-        x: window.innerWidth * 0.05,
-        y: window.innerHeight * 0.05,
-        width: window.innerWidth * 0.9,
-        height: window.innerHeight * 0.9,
+        x: window.innerWidth * 0.18,
+        y: window.innerHeight * 0.12,
+        width: window.innerWidth * INITIAL_VIEWPORT_WIDTH_RATIO,
+        height: window.innerHeight * INITIAL_VIEWPORT_HEIGHT_RATIO,
       };
 
       setPosition({ x: nextBounds.x, y: nextBounds.y });
@@ -373,8 +356,8 @@ export default function DraggablePostersWindow({
         }
 
         if (
-          !target.closest("[data-gallery-drag-handle]") ||
-          target.closest("[data-gallery-control]")
+          !target.closest("[data-editorial-drag-handle]") ||
+          target.closest("[data-editorial-control]")
         ) {
           return;
         }
@@ -393,8 +376,8 @@ export default function DraggablePostersWindow({
       style={{
         left: position ? position.x : 0,
         top: position ? position.y : 0,
-        width: size ? size.width : "90vw",
-        height: size ? size.height : "90vh",
+        width: size ? size.width : "72vw",
+        height: size ? size.height : "78vh",
         zIndex,
       }}
     >
@@ -405,12 +388,10 @@ export default function DraggablePostersWindow({
         )}
         aria-hidden={!visible}
       >
-        <PostersWindow
-          apiPath={apiPath}
+        <EditorialWindow
           maximized={maximized}
           onToggleMaximize={handleToggleMaximize}
           onClose={onClose}
-          title={title}
         />
       </div>
       {!maximized ? (
@@ -419,11 +400,8 @@ export default function DraggablePostersWindow({
             <button
               key={handle.edge}
               type="button"
-              aria-label={`Resize posters window from ${handle.edge}`}
-              className={cn(
-                "absolute z-20 bg-transparent p-0",
-                handle.className,
-              )}
+              aria-label={`Resize editorial window from ${handle.edge}`}
+              className={cn("absolute z-20 bg-transparent p-0", handle.className)}
               style={{ cursor: handle.cursor }}
               onPointerDown={(event) => {
                 event.stopPropagation();

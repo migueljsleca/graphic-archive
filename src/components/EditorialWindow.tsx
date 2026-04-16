@@ -8,11 +8,17 @@ import { Slider } from "@/components/retroui/Slider";
 import { cn } from "@/lib/utils";
 import styles from "@/components/PostersWindow.module.css";
 
-type PosterAsset = {
+type EditorialAsset = {
   name: string;
   src: string;
   width: number;
   height: number;
+};
+
+type EditorialSection = {
+  id: string;
+  title: string;
+  items: EditorialAsset[];
 };
 
 type ScrollMetrics = {
@@ -24,7 +30,7 @@ type ScrollMetrics = {
 const MIN_THUMB_HEIGHT = 48;
 const SCROLLBAR_WIDTH = 20;
 const SCROLL_BUTTON_HEIGHT = 20;
-const DEFAULT_POSTER_COLUMN_WIDTH = 220;
+const DEFAULT_COLUMN_WIDTH = 260;
 const SOFT_NEUTRAL_FILL = "#e7e7e7";
 
 function CloseIcon() {
@@ -39,7 +45,7 @@ function CloseIcon() {
   );
 }
 
-function MaximizeIcon() {
+function WindowIcon() {
   return (
     <svg
       aria-hidden="true"
@@ -51,23 +57,18 @@ function MaximizeIcon() {
   );
 }
 
-export default function PostersWindow({
+export default function EditorialWindow({
   onClose,
   onToggleMaximize,
   maximized,
-  title,
-  apiPath,
 }: {
   onClose: () => void;
   onToggleMaximize: () => void;
   maximized: boolean;
-  title: string;
-  apiPath: string;
 }) {
-  const [posters, setPosters] = useState<PosterAsset[]>([]);
-  const [posterColumnWidth, setPosterColumnWidth] = useState(
-    DEFAULT_POSTER_COLUMN_WIDTH,
-  );
+  const [sections, setSections] = useState<EditorialSection[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [columnWidth, setColumnWidth] = useState(DEFAULT_COLUMN_WIDTH);
   const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
     clientHeight: 0,
     scrollHeight: 0,
@@ -82,9 +83,9 @@ export default function PostersWindow({
   useEffect(() => {
     const controller = new AbortController();
 
-    const loadPosters = async () => {
+    const loadSections = async () => {
       try {
-        const response = await fetch(apiPath, {
+        const response = await fetch("/api/editorial", {
           signal: controller.signal,
         });
 
@@ -92,8 +93,14 @@ export default function PostersWindow({
           return;
         }
 
-        const data = (await response.json()) as { posters?: PosterAsset[] };
-        setPosters(data.posters ?? []);
+        const data = (await response.json()) as { sections?: EditorialSection[] };
+        const nextSections = data.sections ?? [];
+        setSections(nextSections);
+        setSelectedSectionId((current) =>
+          current && nextSections.some((section) => section.id === current)
+            ? current
+            : (nextSections[0]?.id ?? null),
+        );
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -101,12 +108,17 @@ export default function PostersWindow({
       }
     };
 
-    void loadPosters();
+    void loadSections();
 
     return () => {
       controller.abort();
     };
-  }, [apiPath]);
+  }, []);
+
+  const selectedSection = useMemo(
+    () => sections.find((section) => section.id === selectedSectionId) ?? sections[0] ?? null,
+    [sections, selectedSectionId],
+  );
 
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
@@ -125,7 +137,7 @@ export default function PostersWindow({
     };
 
     updateMetrics();
-
+    scrollArea.scrollTop = 0;
     scrollArea.addEventListener("scroll", updateMetrics);
 
     const resizeObserver =
@@ -148,7 +160,7 @@ export default function PostersWindow({
       resizeObserver?.disconnect();
       window.removeEventListener("resize", updateMetrics);
     };
-  }, [posters]);
+  }, [selectedSection]);
 
   const trackHeight = useMemo(
     () => Math.max(scrollMetrics.clientHeight - SCROLL_BUTTON_HEIGHT * 2, 0),
@@ -230,48 +242,48 @@ export default function PostersWindow({
   return (
     <Card className="flex h-full w-full flex-col overflow-hidden rounded-none shadow-none">
       <Card.Header
-        data-gallery-drag-handle
+        data-editorial-drag-handle
         className="grid cursor-grab grid-cols-[minmax(0,1fr)_220px_minmax(0,1fr)] items-center gap-4 border-b-2 border-black bg-primary px-3.5 py-1.5 select-none active:cursor-grabbing"
       >
         <p className="justify-self-start font-mono text-[15px] leading-none text-black">
-          {title}
+          editorial
         </p>
         <div
-          data-gallery-control
+          data-editorial-control
           className="flex w-full items-center justify-center"
           onPointerDown={(event) => {
             event.stopPropagation();
           }}
         >
           <Slider
-            min={140}
+            min={180}
             max={420}
             step={1}
-            value={[posterColumnWidth]}
-            aria-label="Adjust poster size"
+            value={[columnWidth]}
+            aria-label="Adjust editorial image size"
             rangeClassName="bg-[#e7e7e7]"
             onValueChange={([nextWidth]) => {
-              setPosterColumnWidth(nextWidth ?? DEFAULT_POSTER_COLUMN_WIDTH);
+              setColumnWidth(nextWidth ?? DEFAULT_COLUMN_WIDTH);
             }}
           />
         </div>
         <div className="flex items-center justify-self-end gap-2">
           <button
             type="button"
-            data-gallery-control
-            aria-label={maximized ? "Restore posters window" : "Maximize posters window"}
+            data-editorial-control
+            aria-label={maximized ? "Restore editorial window" : "Maximize editorial window"}
             className="flex items-center justify-center text-black"
             onClick={(event) => {
               event.stopPropagation();
               onToggleMaximize();
             }}
           >
-            <MaximizeIcon />
+            <WindowIcon />
           </button>
           <button
             type="button"
-            data-gallery-control
-            aria-label="Close posters window"
+            data-editorial-control
+            aria-label="Close editorial window"
             className="flex items-center justify-center text-black"
             onClick={(event) => {
               event.stopPropagation();
@@ -283,79 +295,107 @@ export default function PostersWindow({
         </div>
       </Card.Header>
 
-      <Card.Content className="relative min-h-0 flex-1 bg-white p-0">
-        <div
-          ref={scrollAreaRef}
-          className={`${styles.scrollArea} h-full overflow-y-auto`}
-        >
-          <div
-            ref={contentRef}
-            className={`${styles.masonryGallery} p-3`}
-            style={{
-              columnGap: "0.75rem",
-              columnWidth: `${posterColumnWidth}px`,
-              paddingRight: SCROLLBAR_WIDTH + 12,
-            }}
-          >
-            {posters.map((poster) => (
-              <div key={poster.name} className={`${styles.masonryItem} mb-3`}>
-                <Image
-                  src={poster.src}
-                  alt={poster.name}
-                  width={poster.width}
-                  height={poster.height}
-                  unoptimized
-                  className="block h-auto w-full"
-                />
-              </div>
-            ))}
+      <Card.Content className="grid min-h-0 flex-1 grid-cols-[210px_1fr] bg-white p-0">
+        <div className="border-r-2 border-black bg-white">
+          <div className="max-h-full overflow-x-hidden overflow-y-auto">
+            {sections.map((section, index) => {
+              const active = section.id === selectedSection?.id;
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={
+                    active
+                      ? index === 0
+                        ? "block w-full bg-black/8 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_-2px_0_0_#000]"
+                        : "block w-full bg-black/8 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]"
+                      : "block w-full px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black hover:bg-black/5"
+                  }
+                  onClick={() => setSelectedSectionId(section.id)}
+                >
+                  {section.title}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="absolute top-0 right-0 bottom-0 flex w-5 flex-col border-l-2 border-black bg-white">
-          <button
-            type="button"
-            aria-label="Scroll posters up"
-            className="flex h-5 items-center justify-center border-b-2 border-black bg-white"
-            onClick={() => handleStepScroll("up")}
+
+        <div className="relative min-h-0 bg-white">
+          <div
+            ref={scrollAreaRef}
+            className={`${styles.scrollArea} h-full overflow-y-auto`}
           >
-            <span
-              aria-hidden="true"
-              className="block h-0 w-0 border-r-[5px] border-b-[7px] border-l-[5px] border-r-transparent border-b-black border-l-transparent"
-            />
-          </button>
-          <div className="relative flex-1 border-b-2 border-black bg-white">
+            <div
+              ref={contentRef}
+              className={`${styles.masonryGallery} p-3`}
+              style={{
+                columnGap: "0.75rem",
+                columnWidth: `${columnWidth}px`,
+                paddingRight: SCROLLBAR_WIDTH + 12,
+              }}
+            >
+              {selectedSection?.items.map((item) => (
+                <div key={item.name} className={`${styles.masonryItem} mb-3`}>
+                  <Image
+                    src={item.src}
+                    alt={item.name}
+                    width={item.width}
+                    height={item.height}
+                    unoptimized
+                    className="block h-auto w-full"
+                  />
+                </div>
+              )) ?? null}
+            </div>
+          </div>
+
+          <div className="absolute top-0 right-0 bottom-0 flex w-5 flex-col border-l-2 border-black bg-white">
             <button
               type="button"
-              aria-label="Scrollbar thumb"
-              className={cn(
-                "absolute left-0 right-0 border-t-2 border-b-2 border-black active:cursor-grabbing",
-                thumbTop <= 0 && "border-t-0",
-                thumbTop >= trackHeight - thumbHeight && "border-b-0",
-              )}
-              style={{
-                height: `${thumbHeight}px`,
-                transform: `translateY(${thumbTop}px)`,
-                backgroundColor: SOFT_NEUTRAL_FILL,
-              }}
-              onPointerDown={(event) => {
-                const thumbBounds = event.currentTarget.getBoundingClientRect();
-                setDraggingThumb({
-                  pointerOffset: event.clientY - thumbBounds.top,
-                });
-              }}
-            />
+              aria-label="Scroll editorial up"
+              className="flex h-5 items-center justify-center border-b-2 border-black bg-white"
+              onClick={() => handleStepScroll("up")}
+            >
+              <span
+                aria-hidden="true"
+                className="block h-0 w-0 border-r-[5px] border-b-[7px] border-l-[5px] border-r-transparent border-b-black border-l-transparent"
+              />
+            </button>
+            <div className="relative flex-1 border-b-2 border-black bg-white">
+              <button
+                type="button"
+                aria-label="Editorial scrollbar thumb"
+                className={cn(
+                  "absolute left-0 right-0 border-t-2 border-b-2 border-black active:cursor-grabbing",
+                  thumbTop <= 0 && "border-t-0",
+                  thumbTop >= trackHeight - thumbHeight && "border-b-0",
+                )}
+                style={{
+                  height: `${thumbHeight}px`,
+                  transform: `translateY(${thumbTop}px)`,
+                  backgroundColor: SOFT_NEUTRAL_FILL,
+                }}
+                onPointerDown={(event) => {
+                  const thumbBounds = event.currentTarget.getBoundingClientRect();
+                  setDraggingThumb({
+                    pointerOffset: event.clientY - thumbBounds.top,
+                  });
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              aria-label="Scroll editorial down"
+              className="flex h-5 items-center justify-center bg-white"
+              onClick={() => handleStepScroll("down")}
+            >
+              <span
+                aria-hidden="true"
+                className="block h-0 w-0 border-t-[7px] border-r-[5px] border-l-[5px] border-t-black border-r-transparent border-l-transparent"
+              />
+            </button>
           </div>
-          <button
-            type="button"
-            aria-label="Scroll posters down"
-            className="flex h-5 items-center justify-center bg-white"
-            onClick={() => handleStepScroll("down")}
-          >
-            <span
-              aria-hidden="true"
-              className="block h-0 w-0 border-t-[7px] border-r-[5px] border-l-[5px] border-t-black border-r-transparent border-l-transparent"
-            />
-          </button>
         </div>
       </Card.Content>
     </Card>

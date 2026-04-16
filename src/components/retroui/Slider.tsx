@@ -5,10 +5,16 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 
 import { cn } from "@/lib/utils";
 
+type SliderProps = React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
+  rangeClassName?: string;
+  trackClassName?: string;
+  thumbClassName?: string;
+};
+
 export const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
+  SliderProps
+>(({ className, rangeClassName, trackClassName, thumbClassName, ...props }, ref) => (
   <SliderPrimitive.Root
     ref={ref}
     className={cn(
@@ -17,10 +23,22 @@ export const Slider = React.forwardRef<
     )}
     {...props}
   >
-    <SliderPrimitive.Track className="relative h-3 w-full grow overflow-hidden bg-background border-2">
-      <SliderPrimitive.Range className="absolute h-full bg-primary" />
+    <SliderPrimitive.Track
+      className={cn(
+        "relative h-3 w-full grow overflow-hidden border-2 bg-background",
+        trackClassName,
+      )}
+    >
+      <SliderPrimitive.Range
+        className={cn("absolute h-full bg-primary", rangeClassName)}
+      />
     </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-4.5 w-4.5 border-2 bg-background shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
+    <SliderPrimitive.Thumb
+      className={cn(
+        "block h-4.5 w-4.5 border-2 bg-background shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+        thumbClassName,
+      )}
+    />
   </SliderPrimitive.Root>
 ));
 
