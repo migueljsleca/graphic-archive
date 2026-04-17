@@ -6,6 +6,7 @@ import DesktopIcons from "@/components/DesktopIcons";
 import DraggableAboutNotepad from "@/components/DraggableAboutNotepad";
 import DraggableEditorialWindow from "@/components/DraggableEditorialWindow";
 import DraggableImagePreview from "@/components/DraggableImagePreview";
+import DraggablePaintWindow from "@/components/DraggablePaintWindow";
 import DraggablePostersWindow from "@/components/DraggablePostersWindow";
 import DraggablePlayer from "@/components/DraggablePlayer";
 import DraggableSettingsWindow from "@/components/DraggableSettingsWindow";
@@ -24,7 +25,10 @@ export default function Home() {
   const [postersVisible, setPostersVisible] = useState(false);
   const [socialMediaVisible, setSocialMediaVisible] = useState(false);
   const [editorialVisible, setEditorialVisible] = useState(false);
+  const [visualIdentitiesVisible, setVisualIdentitiesVisible] = useState(false);
+  const [paintVisible, setPaintVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
+  const [whereToFindMeVisible, setWhereToFindMeVisible] = useState(false);
   const [imageVisible, setImageVisible] = useState(false);
   const [playerVisible, setPlayerVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -36,15 +40,18 @@ export default function Home() {
     style: "single",
   });
   const [settingsMode, setSettingsMode] = useState<SettingsMode>("cursor");
-  const nextWindowZRef = useRef(107);
+  const nextWindowZRef = useRef(109);
   const [windowZ, setWindowZ] = useState({
     posters: 101,
     socialMedia: 102,
     editorial: 103,
-    about: 104,
-    image: 105,
-    settings: 106,
-    player: 107,
+    visualIdentities: 104,
+    paint: 105,
+    about: 106,
+    whereToFindMe: 107,
+    image: 108,
+    settings: 109,
+    player: 110,
   });
 
   const bringWindowToFront = (windowName: keyof typeof windowZ) => {
@@ -93,9 +100,24 @@ export default function Home() {
     bringWindowToFront("socialMedia");
   };
 
+  const handleOpenWhereToFindMe = () => {
+    setWhereToFindMeVisible(true);
+    bringWindowToFront("whereToFindMe");
+  };
+
+  const handleOpenPaint = () => {
+    setPaintVisible(true);
+    bringWindowToFront("paint");
+  };
+
   const handleOpenEditorial = () => {
     setEditorialVisible(true);
     bringWindowToFront("editorial");
+  };
+
+  const handleOpenVisualIdentities = () => {
+    setVisualIdentitiesVisible(true);
+    bringWindowToFront("visualIdentities");
   };
 
   const handleOpenPosters = () => {
@@ -132,7 +154,10 @@ export default function Home() {
         onOpenPosters={handleOpenPosters}
         onOpenSocialMedia={handleOpenSocialMedia}
         onOpenEditorial={handleOpenEditorial}
+        onOpenVisualIdentities={handleOpenVisualIdentities}
+        onOpenPaint={handleOpenPaint}
         onOpenAbout={handleOpenAbout}
+        onOpenWhereToFindMe={handleOpenWhereToFindMe}
         onOpenImage={handleOpenImage}
         onOpenThrowback={handleOpenThrowback}
       />
@@ -153,16 +178,72 @@ export default function Home() {
         zIndex={windowZ.socialMedia}
       />
       <DraggableEditorialWindow
+        apiPath="/api/editorial"
+        footerLink={{
+          href: "https://migueljsleca.github.io/miguel-leca-publishing/imagination-research-3.html",
+          label: "full projects here",
+        }}
+        title="editorial"
         visible={editorialVisible}
         onClose={() => setEditorialVisible(false)}
         onFocus={() => bringWindowToFront("editorial")}
         zIndex={windowZ.editorial}
+      />
+      <DraggableEditorialWindow
+        apiPath="/api/visual-identities"
+        title="visual identities"
+        visible={visualIdentitiesVisible}
+        onClose={() => setVisualIdentitiesVisible(false)}
+        onFocus={() => bringWindowToFront("visualIdentities")}
+        zIndex={windowZ.visualIdentities}
+      />
+      <DraggablePaintWindow
+        visible={paintVisible}
+        onClose={() => setPaintVisible(false)}
+        onFocus={() => bringWindowToFront("paint")}
+        zIndex={windowZ.paint}
       />
       <DraggableAboutNotepad
         visible={aboutVisible}
         onClose={() => setAboutVisible(false)}
         onFocus={() => bringWindowToFront("about")}
         zIndex={windowZ.about}
+      />
+      <DraggableAboutNotepad
+        title="links"
+        paragraphs={[]}
+        links={[
+          {
+            label: "migueljsleca@gmail.com",
+            href: "mailto:migueljsleca@gmail.com",
+          },
+          {
+            label: "my 2022 page",
+            href: "https://migueljsleca.webflow.io/",
+          },
+          {
+            label: "twitter",
+            href: "https://x.com/migueljsleca",
+          },
+          {
+            label: "linkedin",
+            href: "https://www.linkedin.com/in/miguel-le%C3%A7a-804abb111/",
+          },
+          {
+            label: "github",
+            href: "https://github.com/migueljsleca",
+          },
+          {
+            label: "onlyfans",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          },
+        ]}
+        closeLabel="Close links note"
+        initialPosition={{ x: 320, y: 180 }}
+        visible={whereToFindMeVisible}
+        onClose={() => setWhereToFindMeVisible(false)}
+        onFocus={() => bringWindowToFront("whereToFindMe")}
+        zIndex={windowZ.whereToFindMe}
       />
       <DraggableImagePreview
         visible={imageVisible}

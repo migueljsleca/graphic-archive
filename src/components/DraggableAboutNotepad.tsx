@@ -15,11 +15,21 @@ export default function DraggableAboutNotepad({
   onClose,
   onFocus,
   zIndex,
+  title = "about.txt",
+  paragraphs,
+  links,
+  closeLabel = "Close note",
+  initialPosition = { x: 180, y: 140 },
 }: {
   visible: boolean;
   onClose: () => void;
   onFocus?: () => void;
   zIndex?: number;
+  title?: string;
+  paragraphs?: string[];
+  links?: { label: string; href: string }[];
+  closeLabel?: string;
+  initialPosition?: { x: number; y: number };
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState<DragState>(null);
@@ -33,16 +43,13 @@ export default function DraggableAboutNotepad({
     }
 
     frame = window.requestAnimationFrame(() => {
-      setPosition({
-        x: 180,
-        y: 140,
-      });
+      setPosition(initialPosition);
     });
 
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [position, visible]);
+  }, [initialPosition, position, visible]);
 
   useEffect(() => {
     const clampPosition = () => {
@@ -148,7 +155,13 @@ export default function DraggableAboutNotepad({
         )}
         aria-hidden={!visible}
       >
-        <AboutNotepad onClose={onClose} />
+        <AboutNotepad
+          onClose={onClose}
+          title={title}
+          paragraphs={paragraphs}
+          links={links}
+          closeLabel={closeLabel}
+        />
       </div>
     </div>
   );

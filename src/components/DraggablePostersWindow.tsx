@@ -102,6 +102,7 @@ export default function DraggablePostersWindow({
   zIndex,
   title,
   apiPath,
+  refreshToken = 0,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -109,6 +110,7 @@ export default function DraggablePostersWindow({
   zIndex?: number;
   title: string;
   apiPath: string;
+  refreshToken?: number;
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -410,6 +412,7 @@ export default function DraggablePostersWindow({
           maximized={maximized}
           onToggleMaximize={handleToggleMaximize}
           onClose={onClose}
+          refreshToken={refreshToken}
           title={title}
         />
       </div>

@@ -4,6 +4,13 @@ import sharp from "sharp";
 
 const EDITORIAL_DIR = path.join(process.cwd(), "public", "images", "editorial");
 const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+const EDITORIAL_ORDER = [
+  "imagination",
+  "raveolution-issue-1",
+  "raveolution-issue-2",
+  "faults-species-of-spaces",
+  "curve",
+];
 
 type EditorialAsset = {
   name: string;
@@ -29,7 +36,24 @@ export async function GET() {
   const entries = await readdir(EDITORIAL_DIR, { withFileTypes: true });
   const directories = entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-    .sort((left, right) => left.name.localeCompare(right.name));
+    .sort((left, right) => {
+      const leftIndex = EDITORIAL_ORDER.indexOf(left.name);
+      const rightIndex = EDITORIAL_ORDER.indexOf(right.name);
+
+      if (leftIndex === -1 && rightIndex === -1) {
+        return left.name.localeCompare(right.name);
+      }
+
+      if (leftIndex === -1) {
+        return 1;
+      }
+
+      if (rightIndex === -1) {
+        return -1;
+      }
+
+      return leftIndex - rightIndex;
+    });
 
   const sections: EditorialSection[] = await Promise.all(
     directories.map(async (directory) => {

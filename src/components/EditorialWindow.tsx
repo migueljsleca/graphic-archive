@@ -30,8 +30,9 @@ type ScrollMetrics = {
 const MIN_THUMB_HEIGHT = 48;
 const SCROLLBAR_WIDTH = 20;
 const SCROLL_BUTTON_HEIGHT = 20;
-const DEFAULT_COLUMN_WIDTH = 260;
 const SOFT_NEUTRAL_FILL = "#e7e7e7";
+const COLUMN_OPTIONS = [5, 4, 3, 2] as const;
+const DEFAULT_COLUMN_COUNT = 3;
 
 function CloseIcon() {
   return (
@@ -61,14 +62,23 @@ export default function EditorialWindow({
   onClose,
   onToggleMaximize,
   maximized,
+  title,
+  apiPath,
+  footerLink,
 }: {
   onClose: () => void;
   onToggleMaximize: () => void;
   maximized: boolean;
+  title: string;
+  apiPath: string;
+  footerLink?: {
+    href: string;
+    label: string;
+  };
 }) {
   const [sections, setSections] = useState<EditorialSection[]>([]);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const [columnWidth, setColumnWidth] = useState(DEFAULT_COLUMN_WIDTH);
+  const [columnStop, setColumnStop] = useState(COLUMN_OPTIONS.indexOf(DEFAULT_COLUMN_COUNT));
   const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
     clientHeight: 0,
     scrollHeight: 0,
@@ -79,13 +89,14 @@ export default function EditorialWindow({
   } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const columnCount = COLUMN_OPTIONS[columnStop] ?? DEFAULT_COLUMN_COUNT;
 
   useEffect(() => {
     const controller = new AbortController();
 
     const loadSections = async () => {
       try {
-        const response = await fetch("/api/editorial", {
+        const response = await fetch(apiPath, {
           signal: controller.signal,
         });
 
@@ -113,7 +124,7 @@ export default function EditorialWindow({
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [apiPath]);
 
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? sections[0] ?? null,
@@ -246,7 +257,7 @@ export default function EditorialWindow({
         className="grid cursor-grab grid-cols-[minmax(0,1fr)_220px_minmax(0,1fr)] items-center gap-4 border-b-2 border-black bg-primary px-3.5 py-1.5 select-none active:cursor-grabbing"
       >
         <p className="justify-self-start font-mono text-[15px] leading-none text-black">
-          editorial
+          {title}
         </p>
         <div
           data-editorial-control
@@ -256,14 +267,14 @@ export default function EditorialWindow({
           }}
         >
           <Slider
-            min={180}
-            max={420}
+            min={0}
+            max={COLUMN_OPTIONS.length - 1}
             step={1}
-            value={[columnWidth]}
+            value={[columnStop]}
             aria-label="Adjust editorial image size"
             rangeClassName="bg-[#e7e7e7]"
-            onValueChange={([nextWidth]) => {
-              setColumnWidth(nextWidth ?? DEFAULT_COLUMN_WIDTH);
+            onValueChange={([nextStop]) => {
+              setColumnStop(nextStop ?? COLUMN_OPTIONS.indexOf(DEFAULT_COLUMN_COUNT));
             }}
           />
         </div>
@@ -295,9 +306,9 @@ export default function EditorialWindow({
         </div>
       </Card.Header>
 
-      <Card.Content className="grid min-h-0 flex-1 grid-cols-[210px_1fr] bg-white p-0">
-        <div className="border-r-2 border-black bg-white">
-          <div className="max-h-full overflow-x-hidden overflow-y-auto">
+      <Card.Content className="grid min-h-0 flex-1 grid-cols-[260px_1fr] bg-white p-0">
+        <div className="flex min-h-0 flex-col border-r-2 border-black bg-white">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             {sections.map((section, index) => {
               const active = section.id === selectedSection?.id;
 
@@ -308,9 +319,9 @@ export default function EditorialWindow({
                   className={
                     active
                       ? index === 0
-                        ? "block w-full bg-black/8 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_-2px_0_0_#000]"
-                        : "block w-full bg-black/8 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]"
-                      : "block w-full px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black hover:bg-black/5"
+                        ? "block w-full whitespace-nowrap bg-black/8 px-3 py-1.5 text-left font-mono text-[13px] leading-[1.15] text-black shadow-[inset_0_-2px_0_0_#000]"
+                        : "block w-full whitespace-nowrap bg-black/8 px-3 py-1.5 text-left font-mono text-[13px] leading-[1.15] text-black shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]"
+                      : "block w-full whitespace-nowrap px-3 py-1.5 text-left font-mono text-[13px] leading-[1.15] text-black hover:bg-black/5"
                   }
                   onClick={() => setSelectedSectionId(section.id)}
                 >
@@ -319,6 +330,25 @@ export default function EditorialWindow({
               );
             })}
           </div>
+          {footerLink ? (
+            <div className="px-3 pb-2.5 pt-2">
+              <a
+                href={footerLink.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-mono text-[13px] leading-none text-black underline decoration-black/50 underline-offset-2 hover:text-black/70"
+              >
+                <span>{footerLink.label}</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 256 256"
+                  className="size-3.5 fill-current"
+                >
+                  <path d="M204,64V168a12,12,0,0,1-24,0V93L72.49,200.49a12,12,0,0,1-17-17L163,76H88a12,12,0,0,1,0-24H192A12,12,0,0,1,204,64Z" />
+                </svg>
+              </a>
+            </div>
+          ) : null}
         </div>
 
         <div className="relative min-h-0 bg-white">
@@ -331,7 +361,7 @@ export default function EditorialWindow({
               className={`${styles.masonryGallery} p-3`}
               style={{
                 columnGap: "0.75rem",
-                columnWidth: `${columnWidth}px`,
+                columnCount,
                 paddingRight: SCROLLBAR_WIDTH + 12,
               }}
             >

@@ -100,11 +100,20 @@ export default function DraggableEditorialWindow({
   onClose,
   onFocus,
   zIndex,
+  title,
+  apiPath,
+  footerLink,
 }: {
   visible: boolean;
   onClose: () => void;
   onFocus?: () => void;
   zIndex?: number;
+  title: string;
+  apiPath: string;
+  footerLink?: {
+    href: string;
+    label: string;
+  };
 }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
@@ -389,9 +398,12 @@ export default function DraggableEditorialWindow({
         aria-hidden={!visible}
       >
         <EditorialWindow
+          apiPath={apiPath}
+          footerLink={footerLink}
           maximized={maximized}
           onToggleMaximize={handleToggleMaximize}
           onClose={onClose}
+          title={title}
         />
       </div>
       {!maximized ? (

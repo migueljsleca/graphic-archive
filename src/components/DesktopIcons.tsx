@@ -19,7 +19,10 @@ const DEFAULT_ICON_LAYOUT = {
   posters: { xRatio: 0.13, yRatio: 0.43 },
   social: { xRatio: 0.14, yRatio: 0.67 },
   editorial: { xRatio: 0.37, yRatio: 0.67 },
+  visualIdentities: { xRatio: 0.48, yRatio: 0.64 },
+  paint: { xRatio: 0.58, yRatio: 0.49 },
   about: { xRatio: 0.23, yRatio: 0.54 },
+  whereToFindMe: { xRatio: 0.4, yRatio: 0.53 },
   image: { xRatio: 0.285, yRatio: 0.695 },
   throwback: { xRatio: 0.325, yRatio: 0.495 },
 };
@@ -67,11 +70,29 @@ const createInitialIcons = (
     DEFAULT_ICON_LAYOUT.editorial.xRatio,
     DEFAULT_ICON_LAYOUT.editorial.yRatio,
   );
+  const paintPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.paint.xRatio,
+    DEFAULT_ICON_LAYOUT.paint.yRatio,
+  );
+  const whereToFindMePosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.whereToFindMe.xRatio,
+    DEFAULT_ICON_LAYOUT.whereToFindMe.yRatio,
+  );
   const imagePosition = resolveIconPosition(
     viewportWidth,
     viewportHeight,
     DEFAULT_ICON_LAYOUT.image.xRatio,
     DEFAULT_ICON_LAYOUT.image.yRatio,
+  );
+  const visualIdentitiesPosition = resolveIconPosition(
+    viewportWidth,
+    viewportHeight,
+    DEFAULT_ICON_LAYOUT.visualIdentities.xRatio,
+    DEFAULT_ICON_LAYOUT.visualIdentities.yRatio,
   );
   const throwbackPosition = resolveIconPosition(
     viewportWidth,
@@ -110,10 +131,31 @@ const createInitialIcons = (
       imageSrc: "/folder.svg",
     },
     {
+      id: "visual-identities-folder",
+      label: "visual identities",
+      x: visualIdentitiesPosition.x,
+      y: visualIdentitiesPosition.y,
+      imageSrc: "/folder.svg",
+    },
+    {
+      id: "paint-app",
+      label: "paint",
+      x: paintPosition.x,
+      y: paintPosition.y,
+      imageSrc: "/paint.svg",
+    },
+    {
       id: "about-file",
       label: "about.txt",
       x: aboutPosition.x,
       y: aboutPosition.y,
+      imageSrc: "/text.svg",
+    },
+    {
+      id: "where-to-find-me-file",
+      label: "links",
+      x: whereToFindMePosition.x,
+      y: whereToFindMePosition.y,
       imageSrc: "/text.svg",
     },
     {
@@ -136,14 +178,20 @@ export default function DesktopIcons({
   onOpenPosters,
   onOpenSocialMedia,
   onOpenEditorial,
+  onOpenVisualIdentities,
+  onOpenPaint,
   onOpenAbout,
+  onOpenWhereToFindMe,
   onOpenImage,
   onOpenThrowback,
 }: {
   onOpenPosters?: () => void;
   onOpenSocialMedia?: () => void;
   onOpenEditorial?: () => void;
+  onOpenVisualIdentities?: () => void;
+  onOpenPaint?: () => void;
   onOpenAbout?: () => void;
+  onOpenWhereToFindMe?: () => void;
   onOpenImage?: () => void;
   onOpenThrowback?: () => void;
 }) {
@@ -253,6 +301,10 @@ export default function DesktopIcons({
               onOpenAbout?.();
             }
 
+            if (id === "where-to-find-me-file" && !suppressClickRef.current) {
+              onOpenWhereToFindMe?.();
+            }
+
             if (id === "throwback-folder" && !suppressClickRef.current) {
               onOpenThrowback?.();
             }
@@ -263,6 +315,14 @@ export default function DesktopIcons({
 
             if (id === "editorial-folder" && !suppressClickRef.current) {
               onOpenEditorial?.();
+            }
+
+            if (id === "visual-identities-folder" && !suppressClickRef.current) {
+              onOpenVisualIdentities?.();
+            }
+
+            if (id === "paint-app" && !suppressClickRef.current) {
+              onOpenPaint?.();
             }
 
             if (id === "image-file" && !suppressClickRef.current) {

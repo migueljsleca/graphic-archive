@@ -24,8 +24,9 @@ type ScrollMetrics = {
 const MIN_THUMB_HEIGHT = 48;
 const SCROLLBAR_WIDTH = 20;
 const SCROLL_BUTTON_HEIGHT = 20;
-const DEFAULT_POSTER_COLUMN_WIDTH = 220;
 const SOFT_NEUTRAL_FILL = "#e7e7e7";
+const COLUMN_OPTIONS = [5, 4, 3, 2] as const;
+const DEFAULT_COLUMN_COUNT = 3;
 
 function CloseIcon() {
   return (
@@ -57,16 +58,18 @@ export default function PostersWindow({
   maximized,
   title,
   apiPath,
+  refreshToken = 0,
 }: {
   onClose: () => void;
   onToggleMaximize: () => void;
   maximized: boolean;
   title: string;
   apiPath: string;
+  refreshToken?: number;
 }) {
   const [posters, setPosters] = useState<PosterAsset[]>([]);
-  const [posterColumnWidth, setPosterColumnWidth] = useState(
-    DEFAULT_POSTER_COLUMN_WIDTH,
+  const [columnStop, setColumnStop] = useState(
+    COLUMN_OPTIONS.indexOf(DEFAULT_COLUMN_COUNT),
   );
   const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
     clientHeight: 0,
@@ -78,6 +81,7 @@ export default function PostersWindow({
   } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const columnCount = COLUMN_OPTIONS[columnStop] ?? DEFAULT_COLUMN_COUNT;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,6 +90,7 @@ export default function PostersWindow({
       try {
         const response = await fetch(apiPath, {
           signal: controller.signal,
+          cache: "no-store",
         });
 
         if (!response.ok) {
@@ -106,7 +111,7 @@ export default function PostersWindow({
     return () => {
       controller.abort();
     };
-  }, [apiPath]);
+  }, [apiPath, refreshToken]);
 
   useEffect(() => {
     const scrollArea = scrollAreaRef.current;
@@ -244,14 +249,14 @@ export default function PostersWindow({
           }}
         >
           <Slider
-            min={140}
-            max={420}
+            min={0}
+            max={COLUMN_OPTIONS.length - 1}
             step={1}
-            value={[posterColumnWidth]}
+            value={[columnStop]}
             aria-label="Adjust poster size"
             rangeClassName="bg-[#e7e7e7]"
-            onValueChange={([nextWidth]) => {
-              setPosterColumnWidth(nextWidth ?? DEFAULT_POSTER_COLUMN_WIDTH);
+            onValueChange={([nextStop]) => {
+              setColumnStop(nextStop ?? COLUMN_OPTIONS.indexOf(DEFAULT_COLUMN_COUNT));
             }}
           />
         </div>
@@ -293,7 +298,7 @@ export default function PostersWindow({
             className={`${styles.masonryGallery} p-3`}
             style={{
               columnGap: "0.75rem",
-              columnWidth: `${posterColumnWidth}px`,
+              columnCount,
               paddingRight: SCROLLBAR_WIDTH + 12,
             }}
           >
