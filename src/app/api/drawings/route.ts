@@ -1,6 +1,7 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { list, put } from "@vercel/blob";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 const DRAWINGS_DIR = path.join(process.cwd(), "public", "images", "drawings");
 const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+const DRAWINGS_BLOB_PREFIX = "drawings/";
+const DRAWING_WIDTH = 1600;
+const DRAWING_HEIGHT = 1000;
 
 type DrawingAsset = {
   name: string;
@@ -20,7 +24,40 @@ const ensureDrawingsDirectory = async () => {
   await mkdir(DRAWINGS_DIR, { recursive: true });
 };
 
+const hasBlobStorage = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+
+const missingProductionStorageResponse = () =>
+  Response.json({ error: "storage not configured" }, { status: 500 });
+
 export async function GET() {
+  if (hasBlobStorage()) {
+    const { blobs } = await list({
+      prefix: DRAWINGS_BLOB_PREFIX,
+      limit: 1000,
+    });
+
+    const posters: DrawingAsset[] = blobs
+      .filter((blob) =>
+        ALLOWED_EXTENSIONS.has(path.extname(blob.pathname).toLowerCase()),
+      )
+      .sort(
+        (left, right) =>
+          right.uploadedAt.getTime() - left.uploadedAt.getTime(),
+      )
+      .map((blob) => ({
+        name: path.basename(blob.pathname),
+        src: blob.url,
+        width: DRAWING_WIDTH,
+        height: DRAWING_HEIGHT,
+      }));
+
+    return Response.json({ posters });
+  }
+
+  if (process.env.VERCEL === "1") {
+    return missingProductionStorageResponse();
+  }
+
   await ensureDrawingsDirectory();
 
   const entries = await readdir(DRAWINGS_DIR, { withFileTypes: true });
@@ -49,8 +86,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  await ensureDrawingsDirectory();
-
   const body = (await request.json()) as { imageData?: string };
   const imageData = body.imageData;
 
@@ -66,6 +101,23 @@ export async function POST(request: Request) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const fileName = `drawing-${timestamp}.png`;
 
+  if (hasBlobStorage()) {
+    const blob = await put(`${DRAWINGS_BLOB_PREFIX}${fileName}`, buffer, {
+      access: "public",
+      contentType: "image/png",
+    });
+
+    return Response.json({
+      name: fileName,
+      src: blob.url,
+    });
+  }
+
+  if (process.env.VERCEL === "1") {
+    return missingProductionStorageResponse();
+  }
+
+  await ensureDrawingsDirectory();
   await writeFile(path.join(DRAWINGS_DIR, fileName), buffer);
 
   return Response.json({

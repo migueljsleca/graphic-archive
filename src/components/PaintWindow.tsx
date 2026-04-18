@@ -331,7 +331,10 @@ export default function PaintWindow({
       });
 
       if (!response.ok) {
-        throw new Error("Save failed");
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "could not save drawing");
       }
 
       setSaveState({
@@ -339,10 +342,10 @@ export default function PaintWindow({
         message: "saved to drawings",
       });
       setDrawingsRefreshToken((current) => current + 1);
-    } catch {
+    } catch (error) {
       setSaveState({
         status: "error",
-        message: "could not save drawing",
+        message: error instanceof Error ? error.message : "could not save drawing",
       });
     }
   };
