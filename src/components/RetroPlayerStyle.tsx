@@ -557,8 +557,8 @@ export default function RetroPlayerStyle({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const analysisFrameRef = useRef<number | null>(null);
-  const frequencyDataRef = useRef<Uint8Array | null>(null);
-  const timeDomainDataRef = useRef<Uint8Array | null>(null);
+  const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const timeDomainDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const visualizerSmoothRef = useRef<number[]>(Array.from({ length: 56 }, () => 1.15));
   const playRequestedRef = useRef(false);
 
@@ -581,6 +581,7 @@ export default function RetroPlayerStyle({
     }
 
     const audioWindow = window as Window & {
+      AudioContext?: typeof AudioContext;
       webkitAudioContext?: typeof AudioContext;
     };
     const AudioContextClass = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
