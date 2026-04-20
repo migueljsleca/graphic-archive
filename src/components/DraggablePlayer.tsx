@@ -79,9 +79,21 @@ export default function DraggablePlayer({
       }));
     };
 
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            clampPosition();
+          });
+
+    if (playerRef.current) {
+      resizeObserver?.observe(playerRef.current);
+    }
+
     window.addEventListener("resize", clampPosition);
 
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", clampPosition);
     };
   }, [position]);

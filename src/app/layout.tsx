@@ -23,7 +23,7 @@ const bitcountGridSingle = Bitcount_Grid_Single({
 });
 
 export const metadata: Metadata = {
-  title: "Graphic Stuff Archive",
+  title: "Graphic Archive - Miguel Leça",
   description: "A graphic design archive presented like a studio cutting mat.",
 };
 

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button, Card } from "@/components/retroui";
+import styles from "@/components/RetroPlayerStyle.module.css";
+import { cn } from "@/lib/utils";
 
 type LocalTrack = {
   id: string;
@@ -10,6 +12,17 @@ type LocalTrack = {
   src: string;
   artist: string;
 };
+
+type ScrollMetrics = {
+  clientHeight: number;
+  scrollHeight: number;
+  scrollTop: number;
+};
+
+const MIN_THUMB_HEIGHT = 48;
+const SCROLLBAR_WIDTH = 20;
+const SCROLL_BUTTON_HEIGHT = 20;
+const SOFT_NEUTRAL_FILL = "#e7e7e7";
 
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) {
@@ -321,14 +334,17 @@ function PlaylistTitle({
   }, [active, title]);
 
   return (
-    <span ref={containerRef} className="block overflow-hidden">
+    <span ref={containerRef} className="block overflow-hidden whitespace-nowrap">
       {active && shouldScroll ? (
         <span className="player-marquee inline-flex min-w-full gap-6 whitespace-nowrap pr-6">
           <span ref={contentRef}>{title}</span>
           <span aria-hidden="true">{title}</span>
         </span>
       ) : (
-        <span ref={contentRef} className={active ? "block" : "block truncate"}>
+        <span
+          ref={contentRef}
+          className={active ? "inline-block whitespace-nowrap" : "block truncate"}
+        >
           {title}
         </span>
       )}
@@ -349,7 +365,7 @@ function DotMatrixVisualizer({
   const maxDots = 9;
 
   return (
-    <div className="mx-auto aspect-square w-[84%]">
+    <div className="mx-auto aspect-square w-[72%] max-w-[270px]">
       <svg
         aria-hidden="true"
         viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
@@ -477,38 +493,232 @@ function ExpandedPlayer({
   tracks: LocalTrack[];
   visualizerHeights: number[];
 }) {
-  return (
-    <Card.Content className="grid grid-cols-[182px_1fr] p-0">
-      <div className="border-r-2 border-black bg-white">
-        {tracks.length > 0 ? (
-          <div className="max-h-[430px] overflow-x-hidden overflow-y-auto">
-            {tracks.map((track, index) => {
-              const active = index === currentTrackIndex;
+  const [scrollMetrics, setScrollMetrics] = useState<ScrollMetrics>({
+    clientHeight: 0,
+    scrollHeight: 0,
+    scrollTop: 0,
+  });
+  const [draggingThumb, setDraggingThumb] = useState<{
+    pointerOffset: number;
+  } | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
-              return (
+  useEffect(() => {
+    const scrollArea = scrollAreaRef.current;
+    const content = contentRef.current;
+
+    if (!scrollArea) {
+      return;
+    }
+
+    const updateMetrics = () => {
+      setScrollMetrics({
+        clientHeight: scrollArea.clientHeight,
+        scrollHeight: scrollArea.scrollHeight,
+        scrollTop: scrollArea.scrollTop,
+      });
+    };
+
+    updateMetrics();
+
+    scrollArea.addEventListener("scroll", updateMetrics);
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            updateMetrics();
+          });
+
+    resizeObserver?.observe(scrollArea);
+
+    if (content) {
+      resizeObserver?.observe(content);
+    }
+
+    window.addEventListener("resize", updateMetrics);
+
+    return () => {
+      scrollArea.removeEventListener("scroll", updateMetrics);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, [tracks]);
+
+  const trackHeight = useMemo(
+    () => Math.max(scrollMetrics.clientHeight - SCROLL_BUTTON_HEIGHT * 2, 0),
+    [scrollMetrics.clientHeight],
+  );
+
+  const maxScrollTop = useMemo(
+    () => Math.max(scrollMetrics.scrollHeight - scrollMetrics.clientHeight, 0),
+    [scrollMetrics.clientHeight, scrollMetrics.scrollHeight],
+  );
+
+  const thumbHeight = useMemo(() => {
+    if (trackHeight <= 0 || scrollMetrics.scrollHeight <= 0) {
+      return 0;
+    }
+
+    const nextHeight =
+      (scrollMetrics.clientHeight / scrollMetrics.scrollHeight) * trackHeight;
+
+    return Math.max(MIN_THUMB_HEIGHT, Math.min(trackHeight, nextHeight));
+  }, [scrollMetrics.clientHeight, scrollMetrics.scrollHeight, trackHeight]);
+
+  const thumbTop = useMemo(() => {
+    if (maxScrollTop <= 0 || trackHeight <= thumbHeight) {
+      return 0;
+    }
+
+    return (scrollMetrics.scrollTop / maxScrollTop) * (trackHeight - thumbHeight);
+  }, [maxScrollTop, scrollMetrics.scrollTop, thumbHeight, trackHeight]);
+
+  useEffect(() => {
+    if (!draggingThumb) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const scrollArea = scrollAreaRef.current;
+
+      if (!scrollArea || trackHeight <= thumbHeight) {
+        return;
+      }
+
+      const scrollAreaBounds = scrollArea.getBoundingClientRect();
+      const trackTop = scrollAreaBounds.top + SCROLL_BUTTON_HEIGHT;
+      const nextThumbTop = Math.min(
+        Math.max(event.clientY - trackTop - draggingThumb.pointerOffset, 0),
+        trackHeight - thumbHeight,
+      );
+
+      scrollArea.scrollTop = (nextThumbTop / (trackHeight - thumbHeight)) * maxScrollTop;
+    };
+
+    const handlePointerUp = () => {
+      setDraggingThumb(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [draggingThumb, maxScrollTop, thumbHeight, trackHeight]);
+
+  const handleStepScroll = (direction: "up" | "down") => {
+    const scrollArea = scrollAreaRef.current;
+
+    if (!scrollArea) {
+      return;
+    }
+
+    scrollArea.scrollBy({
+      top: direction === "up" ? -104 : 104,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <Card.Content className="grid h-[430px] grid-cols-[182px_1fr] items-stretch p-0">
+      <div className="relative min-h-0 overflow-hidden border-r-2 border-black bg-white">
+        {tracks.length > 0 ? (
+          <>
+            <div
+              ref={scrollAreaRef}
+              className={`${styles.scrollArea} absolute inset-0 overflow-x-hidden overflow-y-auto`}
+            >
+              <div
+                ref={contentRef}
+                style={{ paddingRight: SCROLLBAR_WIDTH }}
+              >
+                {tracks.map((track, index) => {
+                  const active = index === currentTrackIndex;
+                  const isFirstTrack = index === 0;
+                  const isLastTrack = index === tracks.length - 1;
+
+                  return (
+                    <button
+                      key={track.id}
+                      type="button"
+                      className={cn(
+                        "block w-full px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black",
+                        active
+                          ? [
+                              "bg-primary/20",
+                              !isFirstTrack && "shadow-[inset_0_2px_0_0_#000]",
+                              !isLastTrack && "shadow-[inset_0_-2px_0_0_#000]",
+                              !isFirstTrack &&
+                                !isLastTrack &&
+                                "shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]",
+                            ]
+                          : "hover:bg-black/5",
+                      )}
+                      onClick={() => onSelectTrack(index)}
+                    >
+                      <PlaylistTitle active={active} title={track.title} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="absolute top-0 right-0 bottom-0 flex w-5 flex-col border-l-2 border-black bg-white">
+              <button
+                type="button"
+                aria-label="Scroll tracks up"
+                className="flex h-5 items-center justify-center border-b-2 border-black bg-white"
+                onClick={() => handleStepScroll("up")}
+              >
+                <span
+                  aria-hidden="true"
+                  className="block h-0 w-0 border-r-[5px] border-b-[7px] border-l-[5px] border-r-transparent border-b-black border-l-transparent"
+                />
+              </button>
+              <div className="relative flex-1 border-b-2 border-black bg-white">
                 <button
-                  key={track.id}
                   type="button"
-                  className={
-                    active
-                      ? index === 0
-                        ? "block w-full bg-primary/20 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_-2px_0_0_#000]"
-                        : "block w-full bg-primary/20 px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black shadow-[inset_0_2px_0_0_#000,inset_0_-2px_0_0_#000]"
-                      : "block w-full px-3 py-1.5 text-left font-mono text-[14px] leading-[1.15] text-black hover:bg-black/5"
-                  }
-                  onClick={() => onSelectTrack(index)}
-                >
-                  <PlaylistTitle active={active} title={track.title} />
-                </button>
-              );
-            })}
-          </div>
+                  aria-label="Playlist scrollbar thumb"
+                  className={cn(
+                    "absolute left-0 right-0 border-t-2 border-b-2 border-black active:cursor-grabbing",
+                    thumbTop <= 0 && "border-t-0",
+                    thumbTop >= trackHeight - thumbHeight && "border-b-0",
+                  )}
+                  style={{
+                    height: `${thumbHeight}px`,
+                    transform: `translateY(${thumbTop}px)`,
+                    backgroundColor: SOFT_NEUTRAL_FILL,
+                  }}
+                  onPointerDown={(event) => {
+                    const thumbBounds = event.currentTarget.getBoundingClientRect();
+                    setDraggingThumb({
+                      pointerOffset: event.clientY - thumbBounds.top,
+                    });
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="Scroll tracks down"
+                className="flex h-5 items-center justify-center bg-white"
+                onClick={() => handleStepScroll("down")}
+              >
+                <span
+                  aria-hidden="true"
+                  className="block h-0 w-0 border-t-[7px] border-r-[5px] border-l-[5px] border-t-black border-r-transparent border-l-transparent"
+                />
+              </button>
+            </div>
+          </>
         ) : (
           <EmptyPlayerState isLoading={isLoading} message={emptyMessage} />
         )}
       </div>
 
-      <div className="bg-white px-7 pb-6 pt-5">
+      <div className="flex min-h-0 flex-col overflow-hidden bg-white px-7 pb-5 pt-5">
         <DotMatrixVisualizer columnHeights={visualizerHeights} />
 
         <div className="mt-5">
