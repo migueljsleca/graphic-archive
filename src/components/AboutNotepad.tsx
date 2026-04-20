@@ -34,7 +34,6 @@ const DEFAULT_PARAGRAPHS = [
   "here you can find some of my past self eheh",
   "when i started in the design field, i was actually more of a generalist and graphic designer (still am sometimes)",
   "obsessed with making posters and zines, typography, threshold and halftone effects, visual identities, riso printing, etc etc",
-  ,
 ];
 
 export default function AboutNotepad({
