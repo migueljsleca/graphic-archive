@@ -3,6 +3,7 @@ import {
   Bitcount_Grid_Double,
   Bitcount_Grid_Single,
 } from "next/font/google";
+import Script from "next/script";
 
 import "./globals.css";
 
@@ -38,6 +39,11 @@ export default function RootLayout({
       className={`h-full antialiased ${bitcountGridDouble.variable} ${bitcountGridSingle.variable}`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
+      <Script
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        strategy="afterInteractive"
+        data-cf-beacon='{"token":"6f4ad687e2f04c168a398dccb966c2bd"}'
+      />
     </html>
   );
 }
